@@ -15,3 +15,8 @@ djlib = "djlib:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "gnureadline>=8.2.13",
+]
