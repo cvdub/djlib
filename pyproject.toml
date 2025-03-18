@@ -9,6 +9,8 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "platformdirs>=4.3.6",
+    "requests>=2.32.3",
+    "tortoise-orm>=0.24.2",
 ]
 
 [project.scripts]
