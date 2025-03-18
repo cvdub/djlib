@@ -7,7 +7,9 @@ authors = [
     { name = "Christian Vanderwall", email = "christian@cvdub.net" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "platformdirs>=4.3.6",
+]
 
 [project.scripts]
 djlib = "djlib:main"
