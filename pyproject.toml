@@ -1,0 +1,17 @@
+[project]
+name = "djlib"
+version = "0.0.1"
+description = "DJ library management"
+readme = "README.md"
+authors = [
+    { name = "Christian Vanderwall", email = "christian@cvdub.net" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+djlib = "djlib:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
