@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "librespot",
     "platformdirs>=4.3.6",
     "requests>=2.32.3",
     "tortoise-orm>=0.24.2",
@@ -30,3 +31,6 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.uv.sources]
+librespot = { git = "https://github.com/kokarare1212/librespot-python", rev = "59b15ae" }
