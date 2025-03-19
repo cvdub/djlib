@@ -3,6 +3,11 @@ from .abstract import (
     PlaylistTrack,
     Track,
 )
+from .rekordbox import (
+    RekordboxPlaylist,
+    RekordboxPlaylistTrack,
+    RekordboxTrack,
+)
 from .spotify import (
     SpotifyPlaylist,
     SpotifyPlaylistTrack,
@@ -12,6 +17,9 @@ from .spotify import (
 __all__ = [
     "Playlist",
     "PlaylistTrack",
+    "RekordboxPlaylist",
+    "RekordboxPlaylistTrack",
+    "RekordboxTrack",
     "SpotifyPlaylist",
     "SpotifyPlaylistTrack",
     "SpotifyTrack",
