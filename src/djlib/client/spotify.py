@@ -38,8 +38,7 @@ class SpotifyClient(Client):
         exc_val: Optional[type[BaseException]],
         exc_tb: Optional[TracebackType],
     ):
-        self._librespot_session.close()
-        await self._httpx_client.aclose()
+        await self.close()
 
     async def connect(self) -> None:
         if not self._librespot_credentials_file.exists():
@@ -79,6 +78,10 @@ class SpotifyClient(Client):
                     time.sleep(0.1)  # Give credentials file time to save
 
                 return
+
+    async def close(self) -> None:
+        self._librespot_session.close()
+        await self._httpx_client.aclose()
 
     async def _api_request(self, endpoint: str) -> dict:
         if not endpoint.startswith(SPOTIFY_API_URL):
