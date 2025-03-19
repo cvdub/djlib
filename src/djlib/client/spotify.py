@@ -5,7 +5,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import List, Optional, Self, Type
 
-import requests
+import httpx
 from librespot.core import Session
 from librespot.zeroconf import ZeroconfServer
 
@@ -29,6 +29,7 @@ class SpotifyClient(Client):
 
     async def __aenter__(self) -> Self:
         await self.connect()
+        self._httpx_client = httpx.AsyncClient(http2=True)
         return self
 
     async def __aexit__(
@@ -38,6 +39,7 @@ class SpotifyClient(Client):
         exc_tb: Optional[TracebackType],
     ):
         self._librespot_session.close()
+        await self._httpx_client.aclose()
 
     async def connect(self) -> None:
         if not self._librespot_credentials_file.exists():
@@ -84,10 +86,8 @@ class SpotifyClient(Client):
 
         token = self._librespot_session.tokens().get("playlist-read-private")
         async with self._api_semaphore:
-            response = await asyncio.to_thread(
-                lambda: requests.get(
-                    endpoint, headers={"Authorization": f"Bearer {token}"}
-                )
+            response = await self._httpx_client.get(
+                endpoint, headers={"Authorization": f"Bearer {token}"}
             )
 
         response.raise_for_status()
