@@ -1,5 +1,5 @@
 import pytest
-from djlib.client import SpotifyClient
+from djlib.clients import SpotifyClient
 from djlib.models import SpotifyPlaylist
 
 
