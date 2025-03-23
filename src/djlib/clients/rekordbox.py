@@ -16,7 +16,7 @@ from .abstract import Client
 
 
 class RekordboxClient(Client):
-    """Class for interfacing with a Spotify library."""
+    """Class for interfacing with a rekordbox library."""
 
     async def connect(self) -> None:
         # TODO: Download rekordbox db key
