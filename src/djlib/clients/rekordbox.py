@@ -1,8 +1,7 @@
 import asyncio
 from collections.abc import Generator
 from pathlib import Path
-from types import TracebackType
-from typing import List, Optional, Self, Type
+from typing import List, Optional
 
 from mutagen import MutagenError
 from mutagen.id3 import ID3
@@ -18,18 +17,6 @@ from .abstract import Client
 
 class RekordboxClient(Client):
     """Class for interfacing with a Spotify library."""
-
-    async def __aenter__(self) -> Self:
-        await self.connect()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[type[BaseException]],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        await self.close()
 
     async def connect(self) -> None:
         # TODO: Download rekordbox db key

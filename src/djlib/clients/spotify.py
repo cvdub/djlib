@@ -2,8 +2,7 @@ import asyncio
 import time
 from collections.abc import Generator
 from pathlib import Path
-from types import TracebackType
-from typing import List, Optional, Self, Type
+from typing import List, Self
 
 import httpx
 from librespot.core import Session
@@ -27,20 +26,11 @@ class SpotifyClient(Client):
             "credentials.json"
         )
 
-    async def __aenter__(self) -> Self:
-        await self.connect()
-        self._httpx_client = httpx.AsyncClient(http2=True)
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[type[BaseException]],
-        exc_tb: Optional[TracebackType],
-    ):
-        await self.close()
-
     async def connect(self) -> None:
+        # HTTPX
+        self._httpx_client = httpx.AsyncClient(http2=True)
+
+        # Librespot
         if not self._librespot_credentials_file.exists():
             await asyncio.to_thread(lambda: self._get_credentials())
 
