@@ -70,6 +70,7 @@ class Playlist(Model):
 
 
 class Track(Model):
+    external_id = fields.CharField(max_length=255, unique=True)
     title = fields.CharField(max_length=255)
     artist = fields.CharField(max_length=255, null=True)
     album = fields.CharField(max_length=255, null=True)
