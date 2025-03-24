@@ -88,6 +88,15 @@ class Track(Model):
     def __str__(self) -> str:
         return self.title
 
+    async def set_id_or_save(self) -> None:
+        existing_id = await self.__class__.filter(
+            external_id=self.external_id
+        ).values_list("id", flat=True)
+        if existing_id:
+            self.id = existing_id[0]
+
+        await self.save()
+
 
 class PlaylistTrack(Model):
     playlist: fields.ForeignKeyRelation[Playlist] = fields.ForeignKeyField(

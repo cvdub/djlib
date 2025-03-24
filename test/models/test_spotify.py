@@ -34,3 +34,18 @@ async def test_add_tracks(spotify_playlist_factory, spotify_track_factory):
         "6",
         "7",
     ]
+
+
+async def test_set_id_or_save(spotify_track_factory):
+    track = await spotify_track_factory(title="Bar", save=False)
+    assert track.id is None
+    await track.set_id_or_save()
+    assert track.id == 1
+    assert track.title == "Bar"
+
+    track.id = None
+    track.title = "Foo"
+    await track.set_id_or_save()
+    assert track.id == 1
+    await track.refresh_from_db()
+    assert track.title == "Foo"
