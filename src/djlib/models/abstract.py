@@ -88,14 +88,18 @@ class Track(Model):
     def __str__(self) -> str:
         return self.title
 
-    async def set_id_or_save(self) -> None:
+    @transactions.atomic()
+    async def set_id_and_save(self) -> None:
         existing_id = await self.__class__.filter(
             external_id=self.external_id
         ).values_list("id", flat=True)
         if existing_id:
             self.id = existing_id[0]
+            force_update = True
+        else:
+            force_update = False
 
-        await self.save()
+        await self.save(force_update=force_update)
 
 
 class PlaylistTrack(Model):

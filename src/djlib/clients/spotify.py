@@ -2,7 +2,7 @@ import asyncio
 import time
 from collections.abc import Generator
 from pathlib import Path
-from typing import List, Self
+from typing import List
 
 import httpx
 from librespot.core import Session
@@ -131,6 +131,8 @@ class SpotifyClient(Client):
                 # - Try making an ID from the ISRC
                 logger.warning(f"No ID found for {item['track']['name']}")
                 continue
+
+            # TODO: Relink
 
             try:
                 album_artist = item["track"]["album"]["artists"][0]["name"]
