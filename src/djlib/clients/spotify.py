@@ -203,8 +203,8 @@ class SpotifyClient(Client):
         except ValueError:
             disc_number = 1
 
-        if disc_number < 1:
-            disc_number = 1
+        if disc_number < 0:
+            disc_number = 0
 
         return SpotifyTrack(
             external_id=item["track"]["id"],

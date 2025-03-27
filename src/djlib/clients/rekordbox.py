@@ -60,12 +60,8 @@ class RekordboxClient(Client):
             except TypeError:
                 disc_number = 1
 
-            if disc_number < 1:
-                logger.warning(
-                    f"Invalid disc number: {disc_number} on "
-                    f"RekordboxTrack {db_track.FolderPath}"
-                )
-                disc_number = 1
+            if disc_number < 0:
+                disc_number = 0
 
             yield RekordboxTrack(
                 external_id=db_track.ID,

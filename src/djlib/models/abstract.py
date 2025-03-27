@@ -100,7 +100,7 @@ class Track(Model):
     album = fields.CharField(max_length=255, null=True)
     album_artist = fields.CharField(max_length=255, null=True)
     track_number = fields.SmallIntField(null=True, validators=[MinValueValidator(1)])
-    disc_number = fields.SmallIntField(null=True, validators=[MinValueValidator(1)])
+    disc_number = fields.SmallIntField(null=True, validators=[MinValueValidator(0)])
     isrc = fields.CharField(
         max_length=12, null=True, validators=[MinLengthValidator(12)]
     )
