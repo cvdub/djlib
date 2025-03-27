@@ -18,7 +18,7 @@ class Library(ABC):
         self._client = self.client_class()
 
     async def __aenter__(self) -> Self:
-        await self._client.connect()
+        await self.connect()
         return self
 
     async def __aexit__(
@@ -27,6 +27,14 @@ class Library(ABC):
         exc_val: Optional[type[BaseException]],
         exc_tb: Optional[TracebackType],
     ):
+        await self.close()
+
+    async def connect(self) -> None:
+        """Open client connection."""
+        await self._client.connect()
+
+    async def close(self) -> None:
+        """Close client connection."""
         await self._client.close()
 
     async def refresh(self) -> None:
