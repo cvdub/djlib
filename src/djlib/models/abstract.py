@@ -68,6 +68,22 @@ class Playlist(Model):
         for playlist_track in reversed(playlist_tracks):
             await playlist_track.save()
 
+    def differs_from(self, other_playlist: type["Playlist"]) -> bool:
+        """Return True if the metadata for this playlist matches OTHER_PLAYLIST.
+
+        This defaults to True in the base case, but can be extended by other back
+        ends that contain specific fields to indicate when a playlist has changed.
+        """
+        return True
+
+    async def update_to_match(
+        self, other_playlist: type["Playlist"], save=True
+    ) -> None:
+        """Updates the metadata for this playlist to match OTHER_PLAYLIST."""
+        self.name = other_playlist.name
+        if save:
+            await self.save()
+
 
 class Track(Model):
     external_id = fields.CharField(max_length=255, unique=True)

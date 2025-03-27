@@ -1,3 +1,23 @@
+from djlib.models import SpotifyPlaylist
+
+
+def test_differs_from():
+    p1 = SpotifyPlaylist(snapshot_id="1")
+    p2 = SpotifyPlaylist(snapshot_id="1")
+    assert p1.differs_from(p2) is False
+
+    p2.snapshot_id = "2"
+    assert p1.differs_from(p2)
+
+
+async def test_update_to_match(spotify_playlist_factory):
+    p1 = await spotify_playlist_factory(name="foo")
+    p2 = await spotify_playlist_factory(name="bar", save=False)
+    await p1.update_to_match(p2)
+    assert p1.name == "bar"
+    assert p1.snapshot_id == p2.snapshot_id
+
+
 async def test_add_tracks(spotify_playlist_factory, spotify_track_factory):
     playlist = await spotify_playlist_factory()
     await playlist.save()

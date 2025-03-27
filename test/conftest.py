@@ -69,7 +69,11 @@ async def spotify_playlist_factory(database):
     async def _spotify_playlist_factory(save=True, **kwargs) -> SpotifyPlaylist:
         return await _model_factory(
             SpotifyPlaylist,
-            {"external_id": random_spotify_id(), "name": random_string(20)},
+            {
+                "external_id": random_spotify_id(),
+                "name": random_string(20),
+                "snapshot_id": random_string(32),
+            },
             save=save,
             **kwargs,
         )

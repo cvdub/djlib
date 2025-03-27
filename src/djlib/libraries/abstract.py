@@ -77,7 +77,10 @@ class Library(ABC):
                 f"name {client_playlist.name}"
             )
         else:
-            await self._refresh_playlist_tracks(local_playlist)
+            if local_playlist.differs_from(client_playlist):
+                await self._refresh_playlist_tracks(local_playlist)
+                await local_playlist.update_to_match(client_playlist)
+
             logger.debug(
                 f"Finished refreshing {self.playlist_class.__name__} {client_playlist.name}"
             )

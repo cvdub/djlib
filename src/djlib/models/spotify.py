@@ -13,6 +13,17 @@ class SpotifyPlaylist(Playlist):
     )
     playlist_tracks: fields.ReverseRelation["SpotifyPlaylistTrack"]
 
+    def differs_from(self, other_playlist: "SpotifyPlaylist") -> bool:
+        return self.snapshot_id != other_playlist.snapshot_id
+
+    async def update_to_match(
+        self, other_playlist: "SpotifyPlaylist", save=True
+    ) -> None:
+        await super().update_to_match(other_playlist, save=False)
+        self.snapshot_id = other_playlist.snapshot_id
+        if save:
+            await self.save()
+
 
 class SpotifyTrack(Track):
     external_id = fields.CharField(
