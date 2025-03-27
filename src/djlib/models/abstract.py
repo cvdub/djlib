@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List, Optional
 
 from tortoise import Tortoise, fields, transactions
@@ -5,9 +6,16 @@ from tortoise.models import Model
 from tortoise.validators import MinLengthValidator, MinValueValidator
 
 
+class PlaylistStatus(str, Enum):
+    NEW = "new"
+    SYNCED = "synced"
+    IGNORED = "ignored"
+
+
 class Playlist(Model):
     external_id = fields.CharField(max_length=255, unique=True)
     name = fields.CharField(max_length=255, unique=True)
+    status = fields.CharEnumField(PlaylistStatus, default=PlaylistStatus.NEW)
     playlist_tracks: fields.ReverseRelation["PlaylistTrack"]
 
     class Meta:
