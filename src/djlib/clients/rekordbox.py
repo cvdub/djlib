@@ -41,16 +41,31 @@ class RekordboxClient(Client):
         for db_track in db_tracks:
             # ISRC isn't stored properly by rekordbox,
             # so it must be pulled from the ID3 tag
+            # TODO: Pull isrc tags concurrently
             isrc = await asyncio.to_thread(self._read_isrc_tag, db_track.FolderPath)
             try:
                 track_number = int(db_track.TrackNo)
             except TypeError:
+                track_number = 1
+
+            if track_number < 1:
+                logger.warning(
+                    f"Invalid track number: {track_number} on "
+                    f"RekordboxTrack {db_track.FolderPath}"
+                )
                 track_number = None
 
             try:
                 disc_number = int(db_track.DiscNo)
             except TypeError:
-                disc_number = None
+                disc_number = 1
+
+            if disc_number < 1:
+                logger.warning(
+                    f"Invalid disc number: {disc_number} on "
+                    f"RekordboxTrack {db_track.FolderPath}"
+                )
+                disc_number = 1
 
             yield RekordboxTrack(
                 external_id=db_track.ID,
@@ -65,7 +80,7 @@ class RekordboxClient(Client):
             )
 
     def _get_playlist_contents(self, playlist: RekordboxPlaylist) -> List[DjmdContent]:
-        logger.debug("Getting playlist contents")
+        logger.debug(f"Getting rekordbox playlist contents for {playlist.name}")
         song_playlist_objects = (
             self._rekordbox_database.query(DjmdSongPlaylist)
             .options(joinedload(DjmdSongPlaylist.Content))
@@ -76,11 +91,14 @@ class RekordboxClient(Client):
         return [song_playlist.Content for song_playlist in song_playlist_objects]
 
     def _read_isrc_tag(self, track_path: Path) -> Optional[str]:
-        logger.debug("Reading ISRC tag")
         try:
             audio = ID3(track_path)
         except MutagenError:
             logger.warning(f"Failed to read ISRC tag from {track_path}")
             return None
 
-        return str(audio.get("TSRC", "")) or None
+        isrc = str(audio.get("TSRC", "")) or None
+        if isrc:
+            isrc = isrc.replace("-", "")
+
+        return isrc
