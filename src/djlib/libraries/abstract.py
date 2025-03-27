@@ -3,6 +3,8 @@ from abc import ABC
 from types import TracebackType
 from typing import Optional, Self, Type
 
+from tortoise.exceptions import IntegrityError
+
 from ..clients import Client
 from ..logging import logger
 from ..models import Playlist
@@ -64,14 +66,21 @@ class Library(ABC):
         logger.debug(
             f"Refreshing {self.playlist_class.__name__} {client_playlist.name}"
         )
-        local_playlist, created = await self.playlist_class.update_or_create(
-            external_id=client_playlist.external_id,
-            defaults={"name": client_playlist.name},
-        )
-        await self._refresh_playlist_tracks(local_playlist)
-        logger.debug(
-            f"Finished refreshing {self.playlist_class.__name__} {client_playlist.name}"
-        )
+        try:
+            local_playlist, created = await self.playlist_class.update_or_create(
+                external_id=client_playlist.external_id,
+                defaults={"name": client_playlist.name},
+            )
+        except IntegrityError:
+            logger.error(
+                f"Ignoring duplicate {self.playlist_class.__name__} with "
+                f"name {client_playlist.name}"
+            )
+        else:
+            await self._refresh_playlist_tracks(local_playlist)
+            logger.debug(
+                f"Finished refreshing {self.playlist_class.__name__} {client_playlist.name}"
+            )
 
     async def _refresh_playlist_tracks(self, playlist: type[Playlist]) -> None:
         tracks = []
