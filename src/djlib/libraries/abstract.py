@@ -41,7 +41,7 @@ class Library(ABC):
 
     async def refresh(self) -> None:
         """Refresh local models with external data from client."""
-        logger.debug(f"Refreshing {self.__class__.__name__}")
+        logger.info(f"Refreshing {self.__class__.__name__}")
 
         # Cache updated tracks to avoid calling create/update
         # multiple times on the same track
