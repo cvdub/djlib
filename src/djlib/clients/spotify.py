@@ -144,15 +144,15 @@ class SpotifyClient(Client):
 
         # Pull metadata for relinked tracks in batches of 100
         for i in range(0, len(relinked_track_ids), 99):
-            track_ids = relinked_track_ids[i : 1 + 99]
-            relinked_items = await self._api_request(
-                f"tracks?ids={','.join(track_ids)}&market=US"
-            )
-            for item in relinked_items["tracks"]:
-                relinked_items_map[item["id"]] = {
-                    "track": item,
-                    "is_local": item["is_local"],
-                }
+            if track_ids := relinked_track_ids[i : 1 + 99]:
+                relinked_items = await self._api_request(
+                    f"tracks?ids={','.join(track_ids)}&market=US"
+                )
+                for item in relinked_items["tracks"]:
+                    relinked_items_map[item["id"]] = {
+                        "track": item,
+                        "is_local": item["is_local"],
+                    }
 
         for item in items:
             try:
