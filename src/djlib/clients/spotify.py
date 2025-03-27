@@ -129,7 +129,8 @@ class SpotifyClient(Client):
             ",is_local),"
             "next"
         ):
-            items.append(item)
+            if item["track"]:
+                items.append(item)
 
         # Collect relinked tracks
         relinked_track_ids = []
