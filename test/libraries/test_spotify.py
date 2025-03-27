@@ -119,6 +119,7 @@ async def test_refresh_creates_playlists(library):
         "Want",
         "Dune's Lullaby",
         "Absolution",
+        "Fiesta - Remastered",
     ]
 
 

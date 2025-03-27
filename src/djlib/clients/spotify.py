@@ -17,6 +17,10 @@ SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 2
 
 
+class InvalidSpotifyTrackData(Exception):
+    pass
+
+
 class SpotifyClient(Client):
     """Class for interfacing with a Spotify library."""
 
@@ -74,6 +78,7 @@ class SpotifyClient(Client):
         await self._httpx_client.aclose()
 
     async def _api_request(self, endpoint: str) -> dict:
+        # TODO: Add retry for 500 error
         if not endpoint.startswith(SPOTIFY_API_URL):
             endpoint = SPOTIFY_API_URL + endpoint
 
@@ -108,6 +113,7 @@ class SpotifyClient(Client):
     async def get_playlist_tracks(
         self, playlist: SpotifyPlaylist
     ) -> Generator[SpotifyTrack]:
+        items = []
         async for item in self._api_items(
             f"playlists/{playlist.external_id}/tracks?market=US"
             "&fields=items("
@@ -123,57 +129,93 @@ class SpotifyClient(Client):
             ",is_local),"
             "next"
         ):
-            if not item["track"]:
-                continue
+            items.append(item)
 
-            if not item["track"]["id"]:
-                # TODO: Handle local tracks
-                # - Try making an ID from the ISRC
-                logger.warning(f"No ID found for {item['track']['name']}")
-                continue
+        # Collect relinked tracks
+        relinked_track_ids = []
+        for item in items:
+            if "linked_from" in item["track"]:
+                relinked_track_ids.append(item["track"]["id"])
 
-            # TODO: Relink
+        relinked_items_map = {}
+        if relinked_track_ids:
+            logger.debug(f"Relinking {len(relinked_track_ids)} Spotify tracks")
 
-            try:
-                album_artist = item["track"]["album"]["artists"][0]["name"]
-            except IndexError:
-                album_artist = None
-
-            try:
-                album_art_url = item["track"]["album"]["images"][0]["url"]
-            except IndexError:
-                album_art_url = None
-
-            isrc = item["track"]["external_ids"].get("isrc")
-            if isrc:
-                isrc = isrc.replace("-", "")
-
-            try:
-                track_number = int(item["track"]["track_number"])
-            except ValueError:
-                track_number = 1
-
-            if track_number < 1:
-                track_number = 1
-
-            try:
-                disc_number = int(item["track"]["disc_number"])
-            except ValueError:
-                disc_number = 1
-
-            if disc_number < 1:
-                disc_number = 1
-
-            yield SpotifyTrack(
-                external_id=item["track"]["id"],
-                title=item["track"]["name"],
-                artist=item["track"]["artists"][0]["name"],
-                album=item["track"]["album"]["name"],
-                album_artist=album_artist,
-                track_number=track_number,
-                disc_number=disc_number,
-                isrc=isrc,
-                is_local=item["is_local"],
-                is_playable=item["track"].get("is_playable"),
-                album_art_url=album_art_url,
+        # Pull metadata for relinked tracks in batches of 100
+        for i in range(0, len(relinked_track_ids), 99):
+            track_ids = relinked_track_ids[i : 1 + 99]
+            relinked_items = await self._api_request(
+                f"tracks?ids={','.join(track_ids)}&market=US"
             )
+            for item in relinked_items["tracks"]:
+                relinked_items_map[item["id"]] = {
+                    "track": item,
+                    "is_local": item["is_local"],
+                }
+
+        for item in items:
+            try:
+                item = relinked_items_map[item["track"]["id"]]
+            except KeyError:
+                pass
+
+            try:
+                yield self._track_from_api_item(item)
+            except InvalidSpotifyTrackData as e:
+                logger.warning(str(e))
+                continue
+
+    def _track_from_api_item(self, item: dict) -> SpotifyTrack:
+        if not item["track"]:
+            raise InvalidSpotifyTrackData(f'No "track" in Spotify API item {item}')
+
+        if not item["track"]["id"]:
+            # TODO: Handle local tracks
+            # - Try making an ID from the ISRC
+            raise InvalidSpotifyTrackData(
+                f"No ID found for Spotify API track {item['track']['name']}"
+            )
+
+        try:
+            album_artist = item["track"]["album"]["artists"][0]["name"]
+        except IndexError:
+            album_artist = None
+
+        try:
+            album_art_url = item["track"]["album"]["images"][0]["url"]
+        except IndexError:
+            album_art_url = None
+
+        isrc = item["track"]["external_ids"].get("isrc")
+        if isrc:
+            isrc = isrc.replace("-", "")
+
+        try:
+            track_number = int(item["track"]["track_number"])
+        except ValueError:
+            track_number = 1
+
+        if track_number < 1:
+            track_number = 1
+
+        try:
+            disc_number = int(item["track"]["disc_number"])
+        except ValueError:
+            disc_number = 1
+
+        if disc_number < 1:
+            disc_number = 1
+
+        return SpotifyTrack(
+            external_id=item["track"]["id"],
+            title=item["track"]["name"],
+            artist=item["track"]["artists"][0]["name"],
+            album=item["track"]["album"]["name"],
+            album_artist=album_artist,
+            track_number=track_number,
+            disc_number=disc_number,
+            isrc=isrc,
+            is_local=item["is_local"],
+            is_playable=item["track"].get("is_playable"),
+            album_art_url=album_art_url,
+        )
