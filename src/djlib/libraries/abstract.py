@@ -32,8 +32,12 @@ class Library(ABC):
     async def refresh(self) -> None:
         """Refresh local models with external data from client."""
         logger.debug(f"Refreshing {self.__class__.__name__}")
-        client_playlists = []
+
+        # Cache updated tracks to avoid calling create/update
+        # multiple times on the same track
         self._tracks_external_id_map = {}
+
+        client_playlists = []
         async with asyncio.TaskGroup() as tg:
             async for client_playlist in self._client.get_playlists():
                 client_playlists.append(client_playlist)
@@ -41,6 +45,7 @@ class Library(ABC):
 
             tg.create_task(self._refresh_non_playlist_tracks())
 
+        # Delete local playlists that no longer exist on client
         await self.playlist_class.exclude(
             external_id__in=(
                 client_playlist.external_id for client_playlist in client_playlists
@@ -55,9 +60,15 @@ class Library(ABC):
             external_id=client_playlist.external_id,
             defaults={"name": client_playlist.name},
         )
+        await self._refresh_playlist_tracks(local_playlist)
+        logger.debug(
+            f"Finished refreshing {self.playlist_class.__name__} {client_playlist.name}"
+        )
+
+    async def _refresh_playlist_tracks(self, playlist: type[Playlist]) -> None:
         tracks = []
         async with asyncio.TaskGroup() as tg:
-            async for track in self._client.get_playlist_tracks(local_playlist):
+            async for track in self._client.get_playlist_tracks(playlist):
                 try:
                     tracks.append(self._tracks_external_id_map[track.external_id])
                 except KeyError:
@@ -65,10 +76,7 @@ class Library(ABC):
                     self._tracks_external_id_map[track.external_id] = track
                     tracks.append(track)
 
-        await local_playlist.add_tracks(*tracks, delete_existing=True)
-        logger.debug(
-            f"Finished refreshing {self.playlist_class.__name__} {client_playlist.name}"
-        )
+        await playlist.add_tracks(*tracks, delete_existing=True)
 
     async def _refresh_non_playlist_tracks(self) -> None:
         pass
