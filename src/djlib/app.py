@@ -34,6 +34,7 @@ class App:
             self._libraries.append(library)
 
     async def close(self) -> None:
+        await self._database.close()
         for library in self._libraries:
             await library.close()
 
