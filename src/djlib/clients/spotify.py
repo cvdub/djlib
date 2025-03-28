@@ -88,7 +88,12 @@ class SpotifyClient(Client):
                 endpoint, headers={"Authorization": f"Bearer {token}"}
             )
 
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except Exception:
+            logger.error(response)
+            raise
+
         return response.json()
 
     async def _api_items(self, endpoint: str) -> List[dict]:
