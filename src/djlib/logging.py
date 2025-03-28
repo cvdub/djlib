@@ -7,7 +7,7 @@ logger = logging.getLogger("djlib")
 logger.setLevel(Config.log_level)
 handler = logging.StreamHandler()
 handler.setLevel(Config.log_level)
-log_format = "{asctime} {levelname:>5}: {message}"
+log_format = "{asctime} {levelname:>7}: {message}"
 formatter = logging.Formatter(log_format, style="{")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
