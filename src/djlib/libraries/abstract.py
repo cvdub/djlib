@@ -62,6 +62,8 @@ class Library(ABC):
             )
         ).delete()
 
+        logger.info(f"Finished refreshing {self.__class__.__name__}")
+
     async def _refresh_playlist(self, client_playlist: type[Playlist]) -> None:
         logger.debug(
             f"Refreshing {self.playlist_class.__name__} {client_playlist.name}"
