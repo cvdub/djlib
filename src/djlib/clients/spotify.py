@@ -14,7 +14,7 @@ from ..models import SpotifyPlaylist, SpotifyTrack
 from .abstract import Client
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
-CONCURRENT_API_CALLS = 2
+CONCURRENT_API_CALLS = 1
 
 
 class InvalidSpotifyTrackData(Exception):
