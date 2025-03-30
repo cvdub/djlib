@@ -1,9 +1,14 @@
 from abc import ABC, abstractmethod
 from collections.abc import Generator
+from pathlib import Path
 from types import TracebackType
 from typing import Optional, Self, Type
 
 from ..models import Playlist, Track
+
+
+class TrackExportError(Exception):
+    pass
 
 
 class Client(ABC):
@@ -39,4 +44,12 @@ class Client(ABC):
     async def get_playlist_tracks(
         self, playlist: type[Playlist]
     ) -> Generator[type[Track]]:
+        pass
+
+    @abstractmethod
+    async def export_track(self, track: type[Track], export_directory: Path) -> Path:
+        """Export TRACK from external library, saving it in EXPORT_DIRECTORY.
+
+        Returns a path to the exported track.
+        """
         pass

@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 from collections.abc import Generator
 from pathlib import Path
 from typing import List, Optional
@@ -98,3 +99,13 @@ class RekordboxClient(Client):
             isrc = isrc.replace("-", "")
 
         return isrc
+
+    async def export_track(
+        self, track: type[RekordboxTrack], export_directory: Path
+    ) -> Path:
+        logger.info(f"Exporting {track} to {export_directory}")
+        await asyncio.to_thread(
+            shutil.copy,
+            track.path,
+            export_directory / f"{track.isrc}{track.path.suffix}",
+        )

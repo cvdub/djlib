@@ -1,20 +1,37 @@
 import asyncio
 import time
 from collections.abc import Generator
+from io import BytesIO
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import httpx
+from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import Session
+from librespot.metadata import TrackId
 from librespot.zeroconf import ZeroconfServer
+from mutagen.id3 import (
+    APIC,
+    ID3,
+    TIT2,
+    TPE1,
+    TPE2,
+    TPOS,
+    TRCK,
+    TSRC,
+    TXXX,
+    Encoding,
+)
+from pydub import AudioSegment
 
 from ..config import Config
 from ..logging import logger
 from ..models import SpotifyPlaylist, SpotifyTrack
-from .abstract import Client
+from .abstract import Client, TrackExportError
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 1
+CHUNK_SIZE = 65536
 
 
 class InvalidSpotifyTrackData(Exception):
@@ -225,3 +242,78 @@ class SpotifyClient(Client):
             is_playable=item["track"].get("is_playable"),
             album_art_url=album_art_url,
         )
+
+    async def export_track(
+        self, track: type[SpotifyTrack], export_directory: Path
+    ) -> Optional[Path]:
+        logger.info(f"Exporting {track!r}")
+        if not track.is_playable:
+            raise TrackExportError(f"{track!r} is not playable, skipping export")
+
+        audio_bytes = await asyncio.to_thread(self._get_track_stream, track)
+
+        logger.debug(f"Converting {track!r} to MP3")
+        audio_bytes.seek(0)
+        audio = AudioSegment.from_file(audio_bytes, format="ogg")
+        export_path = export_directory / f"{track.isrc}.mp3"
+        await asyncio.to_thread(
+            audio.export, export_path, format="mp3", parameters=["-q:a", "0"]
+        )
+
+        logger.debug(f"Setting ID3 tags on {track!r}")
+        audio = ID3(export_path)
+        audio.add(TIT2(text=track.title, encoding=Encoding.UTF8))
+        if track.artist:
+            audio.add(TPE1(text=track.artist, encoding=Encoding.UTF8))
+
+        if track.album_artist:
+            audio.add(TPE2(text=track.album_artist, encoding=Encoding.UTF8))
+
+        if track.track_number is not None:
+            audio.add(TRCK(text=str(track.track_number), encoding=Encoding.UTF8))
+
+        if track.disc_number is not None:
+            audio.add(TPOS(text=str(track.disc_number), encoding=Encoding.UTF8))
+
+        audio.add(TSRC(text=track.isrc, encoding=Encoding.UTF8))
+        audio.add(TXXX(desc="spotify_uris", text=track.external_id))
+
+        if track.album_art_url:
+            logger.debug(f"Getting album art for {track!r}")
+            response = await self._httpx_client.get(track.album_art_url)
+            if response.status_code == 200:
+                audio.add(
+                    APIC(
+                        data=response.content,
+                        encoding=Encoding.UTF8,
+                        mime="image/jpeg",
+                        type=3,
+                        desc="0",
+                    )
+                )
+            else:
+                logger.error(f"Failed to get album art for {track!r}: {response}")
+
+        await asyncio.to_thread(audio.save)
+
+        logger.debug(f"Finished exporting {track!r}")
+
+        return export_path
+
+    def _get_track_stream(self, track: SpotifyTrack) -> BytesIO:
+        logger.debug(f"Getting audio stream for {track!r}")
+        track_stream = self._librespot_session.content_feeder().load(
+            TrackId.from_base62(track.external_id),
+            VorbisOnlyAudioQuality(AudioQuality.VERY_HIGH),
+            True,  # Pre-load
+            None,
+        )
+        audio_bytes = BytesIO()
+        while True:
+            chunk = track_stream.input_stream.stream().read(CHUNK_SIZE)
+            if not chunk:
+                break
+
+            audio_bytes.write(chunk)
+
+        return audio_bytes
