@@ -1,8 +1,9 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Self
 
 from tortoise import Tortoise, fields, transactions
 from tortoise.models import Model
+from tortoise.queryset import QuerySet
 from tortoise.validators import MinLengthValidator, MinValueValidator
 
 
@@ -124,6 +125,12 @@ class Track(Model):
             force_update = False
 
         await self.save(force_update=force_update)
+
+    @classmethod
+    def in_synced_playlists(cls) -> QuerySet[Self]:
+        return cls.filter(
+            playlist_tracks__playlist__status=PlaylistStatus.SYNCED
+        ).distinct()
 
 
 class PlaylistTrack(Model):

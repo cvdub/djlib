@@ -1,4 +1,4 @@
-from djlib.models import SpotifyPlaylist
+from djlib.models import PlaylistStatus, SpotifyPlaylist, SpotifyTrack
 
 
 def test_differs_from():
@@ -77,3 +77,30 @@ async def test_set_id_and_save(spotify_track_factory):
     assert new_track.pk == 1
     await track.refresh_from_db()
     assert track.title == "Baz"
+
+
+async def test_in_synced_playlists(spotify_playlist_factory, spotify_track_factory):
+    playlists = (
+        await spotify_playlist_factory(status=PlaylistStatus.SYNCED),
+        await spotify_playlist_factory(status=PlaylistStatus.SYNCED),
+        await spotify_playlist_factory(status=PlaylistStatus.NEW),
+        await spotify_playlist_factory(status=PlaylistStatus.IGNORED),
+    )
+    tracks = (
+        await spotify_track_factory(),
+        await spotify_track_factory(),
+        await spotify_track_factory(),
+        await spotify_track_factory(),
+        await spotify_track_factory(),
+        await spotify_track_factory(),
+        await spotify_track_factory(),
+    )
+    await playlists[0].add_tracks(*tracks[:2])
+    await playlists[1].add_tracks(*tracks[1:3])
+    await playlists[2].add_tracks(*tracks)
+    await playlists[3].add_tracks(*tracks)
+
+    assert (
+        tuple(await SpotifyTrack.in_synced_playlists().all().order_by("id"))
+        == tracks[:3]
+    )
