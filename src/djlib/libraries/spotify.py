@@ -1,9 +1,9 @@
 from ..clients import SpotifyClient
-from ..logging import logger
-from ..models import SpotifyPlaylist
+from ..models import SpotifyPlaylist, SpotifyTrack
 from .abstract import Library
 
 
 class SpotifyLibrary(Library):
     client_class = SpotifyClient
-    playlist_class = SpotifyPlaylist
+    playlists = SpotifyPlaylist
+    tracks = SpotifyTrack

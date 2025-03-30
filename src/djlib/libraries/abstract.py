@@ -7,16 +7,32 @@ from tortoise.exceptions import IntegrityError
 
 from ..clients import Client
 from ..logging import logger
-from ..models import Playlist
+from ..models import Playlist, Track
 
 
 class Library(ABC):
     """Class for managing a music library."""
 
-    client_class: type[Client] = None
-    playlist_class: type[Playlist] = None
+    client_class: Type[Client] = None
+    playlists: Type[Playlist] = None
+    tracks: Type[Track] = None
 
     def __init__(self):
+        if self.client_class is None:
+            raise AttributeError(
+                '"client_class" must be defined on subclasses of Library.'
+            )
+
+        if self.playlists is None:
+            raise AttributeError(
+                '"playlists" must be defined on subclasses of Library.'
+            )
+
+        if self.tracks is None:
+            raise AttributeError(
+                '"playlists" must be defined on subclasses of Library.'
+            )
+
         self._client = self.client_class()
 
     async def __aenter__(self) -> Self:
@@ -56,7 +72,7 @@ class Library(ABC):
             tg.create_task(self._refresh_non_playlist_tracks())
 
         # Delete local playlists that no longer exist on client
-        await self.playlist_class.exclude(
+        await self.playlists.exclude(
             external_id__in=(
                 client_playlist.external_id for client_playlist in client_playlists
             )
@@ -65,17 +81,15 @@ class Library(ABC):
         logger.info(f"Finished refreshing {self.__class__.__name__}")
 
     async def _refresh_playlist(self, client_playlist: type[Playlist]) -> None:
-        logger.debug(
-            f"Refreshing {self.playlist_class.__name__} {client_playlist.name}"
-        )
+        logger.debug(f"Refreshing {self.playlists.__name__} {client_playlist.name}")
         try:
-            local_playlist, created = await self.playlist_class.update_or_create(
+            local_playlist, created = await self.playlists.update_or_create(
                 external_id=client_playlist.external_id,
                 defaults={"name": client_playlist.name},
             )
         except IntegrityError:
             logger.error(
-                f"Ignoring duplicate {self.playlist_class.__name__} with "
+                f"Ignoring duplicate {self.playlists.__name__} with "
                 f"name {client_playlist.name}"
             )
         else:
@@ -84,7 +98,7 @@ class Library(ABC):
                 await local_playlist.update_to_match(client_playlist)
 
             logger.debug(
-                f"Finished refreshing {self.playlist_class.__name__} {client_playlist.name}"
+                f"Finished refreshing {self.playlists.__name__} {client_playlist.name}"
             )
 
     async def _refresh_playlist_tracks(self, playlist: type[Playlist]) -> None:

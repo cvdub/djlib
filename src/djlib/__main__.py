@@ -23,7 +23,7 @@ async def main():
             case Command.REFRESH:
                 await app.refresh()
             case Command.EXPORT:
-                print("TODO")
+                await app.update(app.spotify, app.rekordbox)
 
 
 if __name__ == "__main__":

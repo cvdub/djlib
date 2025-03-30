@@ -1,16 +1,24 @@
 import asyncio
 from types import TracebackType
-from typing import Optional, Self, Type
+from typing import List, Optional, Self, Type
 
 from .database import Database
-from .libraries import RekordboxLibrary, SpotifyLibrary
+from .libraries import Library, RekordboxLibrary, SpotifyLibrary
+from .logging import logger
+from .models import Track
 
 
 class App:
-    _library_classes = [SpotifyLibrary, RekordboxLibrary]
-
     def __init__(self):
-        self._libraries = []
+        self._libraries = {"spotify": SpotifyLibrary(), "rekordbox": RekordboxLibrary()}
+
+    @property
+    def spotify(self) -> SpotifyLibrary:
+        return self._libraries["spotify"]
+
+    @property
+    def rekordbox(self) -> RekordboxLibrary:
+        return self._libraries["rekordbox"]
 
     async def __aenter__(self) -> Self:
         await self.start()
@@ -28,10 +36,8 @@ class App:
         self._database = Database()
         await self._database.start()
 
-        for library_class in self._library_classes:
-            library = library_class()
+        for library in self._libraries.values():
             await library.connect()
-            self._libraries.append(library)
 
     async def close(self) -> None:
         await self._database.close()
@@ -41,3 +47,27 @@ class App:
     async def refresh(self) -> None:
         """Refresh all libraries."""
         await asyncio.gather(*(library.refresh() for library in self._libraries))
+
+    async def update(self, source: type[Library], target: type[Library]) -> None:
+        """Update tracks and playlists TARGET to match SOURCE."""
+        missing_tracks = await self._get_missing_tracks(source, target)
+        for i, track in enumerate(missing_tracks):
+            print(i, track)
+
+    async def _get_missing_tracks(
+        self, source: type[Library], target: type[Library]
+    ) -> List[type[Track]]:
+        """Return a QuerySet of tracks from synced playlists not found in TARGET."""
+        logger.debug(f"Getting tracks in {source} not in {target}")
+        target_isrcs = (
+            await target.tracks.all()
+            .exclude(isrc=None)
+            .order_by("isrc")
+            .distinct()
+            .values_list("isrc", flat=True)
+        )
+        return (
+            await source.tracks.in_synced_playlists()
+            .exclude(isrc=None)
+            .exclude(isrc__in=target_isrcs)
+        )
