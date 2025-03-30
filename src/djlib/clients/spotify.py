@@ -36,7 +36,7 @@ class SpotifyClient(Client):
 
         # Librespot
         if not self._librespot_credentials_file.exists():
-            await asyncio.to_thread(lambda: self._get_credentials())
+            await asyncio.to_thread(self._get_credentials)
 
         librespot_config = Session.Configuration.Builder().set_stored_credential_file(
             self._librespot_credentials_file
@@ -45,7 +45,7 @@ class SpotifyClient(Client):
         for attempt in range(max_retries):
             try:
                 self._librespot_session = await asyncio.to_thread(
-                    lambda: Session.Builder(librespot_config).stored_file().create()
+                    Session.Builder(librespot_config).stored_file().create
                 )
             except Exception:
                 if attempt == max_retries - 1:  # Last attempt
