@@ -3,6 +3,8 @@ from contextlib import contextmanager
 
 from .config import Config
 
+logging.captureWarnings(True)
+
 logger = logging.getLogger("djlib")
 logger.setLevel(Config.log_level)
 handler = logging.StreamHandler()
