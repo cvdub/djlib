@@ -35,6 +35,9 @@ class Library(ABC):
 
         self._client = self.client_class()
 
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
     async def __aenter__(self) -> Self:
         await self.connect()
         return self
@@ -57,7 +60,7 @@ class Library(ABC):
 
     async def refresh(self) -> None:
         """Refresh local models with external data from client."""
-        logger.info(f"Refreshing {self.__class__.__name__}")
+        logger.info(f"Refreshing {self}")
 
         # Cache updated tracks to avoid calling create/update
         # multiple times on the same track
@@ -78,28 +81,23 @@ class Library(ABC):
             )
         ).delete()
 
-        logger.info(f"Finished refreshing {self.__class__.__name__}")
+        logger.info(f"Finished refreshing {self}")
 
     async def _refresh_playlist(self, client_playlist: type[Playlist]) -> None:
-        logger.debug(f"Refreshing {self.playlists.__name__} {client_playlist.name}")
+        logger.debug(f"Refreshing {client_playlist}")
         try:
             local_playlist, created = await self.playlists.update_or_create(
                 external_id=client_playlist.external_id,
                 defaults={"name": client_playlist.name},
             )
         except IntegrityError:
-            logger.error(
-                f"Ignoring duplicate {self.playlists.__name__} with "
-                f"name {client_playlist.name}"
-            )
+            logger.error(f"Ignoring duplicate {client_playlist}")
         else:
             if local_playlist.differs_from(client_playlist):
                 await self._refresh_playlist_tracks(local_playlist)
                 await local_playlist.update_to_match(client_playlist)
 
-            logger.debug(
-                f"Finished refreshing {self.playlists.__name__} {client_playlist.name}"
-            )
+            logger.debug(f"Finished refreshing {client_playlist}")
 
     async def _refresh_playlist_tracks(self, playlist: type[Playlist]) -> None:
         tracks = []

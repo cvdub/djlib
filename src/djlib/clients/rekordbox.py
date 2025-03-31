@@ -77,7 +77,7 @@ class RekordboxClient(Client):
             )
 
     def _get_playlist_contents(self, playlist: RekordboxPlaylist) -> List[DjmdContent]:
-        logger.debug(f"Getting rekordbox playlist contents for {playlist.name}")
+        logger.debug(f"Getting playlist contents for {playlist}")
         song_playlist_objects = (
             self._rekordbox_database.query(DjmdSongPlaylist)
             .options(joinedload(DjmdSongPlaylist.Content))

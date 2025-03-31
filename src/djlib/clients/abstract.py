@@ -14,6 +14,9 @@ class TrackExportError(Exception):
 class Client(ABC):
     """Class for interfacing with an external music library."""
 
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
     async def __aenter__(self) -> Self:
         await self.connect()
         return self

@@ -246,13 +246,13 @@ class SpotifyClient(Client):
     async def export_track(
         self, track: type[SpotifyTrack], export_directory: Path
     ) -> Optional[Path]:
-        logger.info(f"Exporting {track!r}")
+        logger.info(f"Exporting {track}")
         if not track.is_playable:
-            raise TrackExportError(f"{track!r} is not playable, skipping export")
+            raise TrackExportError(f"{track} is not playable, skipping export")
 
         audio_bytes = await asyncio.to_thread(self._get_track_stream, track)
 
-        logger.debug(f"Converting {track!r} to MP3")
+        logger.debug(f"Converting {track} to MP3")
         audio_bytes.seek(0)
         audio = AudioSegment.from_file(audio_bytes, format="ogg")
         export_path = export_directory / f"{track.isrc}.mp3"
@@ -260,7 +260,7 @@ class SpotifyClient(Client):
             audio.export, export_path, format="mp3", parameters=["-q:a", "0"]
         )
 
-        logger.debug(f"Setting ID3 tags on {track!r}")
+        logger.debug(f"Setting ID3 tags on {track}")
         audio = ID3(export_path)
         audio.add(TIT2(text=track.title, encoding=Encoding.UTF8))
         if track.artist:
@@ -279,7 +279,7 @@ class SpotifyClient(Client):
         audio.add(TXXX(desc="spotify_uris", text=track.external_id))
 
         if track.album_art_url:
-            logger.debug(f"Getting album art for {track!r}")
+            logger.debug(f"Getting album art for {track}")
             response = await self._httpx_client.get(track.album_art_url)
             if response.status_code == 200:
                 audio.add(
@@ -292,16 +292,16 @@ class SpotifyClient(Client):
                     )
                 )
             else:
-                logger.error(f"Failed to get album art for {track!r}: {response}")
+                logger.error(f"Failed to get album art for {track}: {response}")
 
         await asyncio.to_thread(audio.save)
 
-        logger.debug(f"Finished exporting {track!r}")
+        logger.debug(f"Finished exporting {track}")
 
         return export_path
 
     def _get_track_stream(self, track: SpotifyTrack) -> BytesIO:
-        logger.debug(f"Getting audio stream for {track!r}")
+        logger.debug(f"Getting audio stream for {track}")
         track_stream = self._librespot_session.content_feeder().load(
             TrackId.from_base62(track.external_id),
             VorbisOnlyAudioQuality(AudioQuality.VERY_HIGH),

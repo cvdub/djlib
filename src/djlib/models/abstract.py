@@ -24,7 +24,7 @@ class Playlist(Model):
         indexes = ("external_id",)
 
     def __str__(self) -> str:
-        return self.name
+        return f"<{self.__class__.__name__}: {self.name}>"
 
     @property
     def _track_model(self) -> type["PlaylistTrack"]:
@@ -111,7 +111,7 @@ class Track(Model):
         indexes = ("external_id", "isrc")
 
     def __str__(self) -> str:
-        return self.title
+        return f"<{self.__class__.__name__}: {self.external_id}>"
 
     @transactions.atomic()
     async def set_id_and_save(self) -> None:
