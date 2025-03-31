@@ -41,7 +41,7 @@ class App:
 
     async def close(self) -> None:
         await self._database.close()
-        for library in self._libraries:
+        for library in self._libraries.values():
             await library.close()
 
     async def refresh(self) -> None:
