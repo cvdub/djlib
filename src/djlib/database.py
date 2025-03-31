@@ -8,8 +8,11 @@ from .logging import logger
 
 
 class Database:
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
     async def start(self) -> None:
-        logger.debug("Starting database")
+        logger.debug(f"Starting {self}")
         await Tortoise.init(
             db_url=f"sqlite://{Config.database_file}",
             modules={"models": ["djlib.models"]},
@@ -17,7 +20,7 @@ class Database:
         await Tortoise.generate_schemas()
 
     async def close(self) -> None:
-        logger.debug("Closing database")
+        logger.debug(f"Closing {self}")
         await Tortoise.close_connections()
 
     async def __aenter__(self) -> Self:

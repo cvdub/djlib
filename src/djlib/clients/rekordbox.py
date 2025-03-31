@@ -20,10 +20,12 @@ class RekordboxClient(Client):
     """Class for interfacing with a rekordbox library."""
 
     async def connect(self) -> None:
+        logger.debug(f"Starting {self}")
         # TODO: Download rekordbox db key
         self._rekordbox_database = await asyncio.to_thread(Rekordbox6Database)
 
     async def close(self) -> None:
+        logger.debug(f"Closing {self}")
         await asyncio.to_thread(self._rekordbox_database.close)
 
     async def get_playlists(self) -> Generator[RekordboxPlaylist]:

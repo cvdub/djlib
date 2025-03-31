@@ -50,6 +50,7 @@ class SpotifyClient(Client):
         )
 
     async def connect(self) -> None:
+        logger.debug(f"Starting {self}")
         # HTTPX
         self._httpx_client = httpx.AsyncClient(http2=True)
 
@@ -93,6 +94,7 @@ class SpotifyClient(Client):
                 return
 
     async def close(self) -> None:
+        logger.debug(f"Closing {self}")
         self._librespot_session.close()
         await self._httpx_client.aclose()
 
