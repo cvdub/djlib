@@ -308,7 +308,7 @@ class SpotifyClient(Client):
         # TODO: Add config options for normalization
         logger.debug(f"Normalizing {export_path}")
         await asyncio.create_subprocess_exec(
-            "mp3gain", "-e", "-r", "-k", "-d", "6", "-p", "-s", "r", export_path
+            "mp3gain", "-e", "-r", "-k", "-d", "6", "-p", "-s", "r", "-q", export_path
         )
 
         logger.debug(f"Finished exporting {track}")
