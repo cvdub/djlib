@@ -1,4 +1,6 @@
 import asyncio
+import tempfile
+from pathlib import Path
 from types import TracebackType
 from typing import List, Optional, Self, Type
 
@@ -50,9 +52,24 @@ class App:
 
     async def update(self, source: type[Library], target: type[Library]) -> None:
         """Update tracks and playlists TARGET to match SOURCE."""
+        logger.info(f"Updating {source} to match {target}")
         missing_tracks = await self._get_missing_tracks(source, target)
-        for i, track in enumerate(missing_tracks):
-            print(i, track)
+        if missing_tracks:
+            with tempfile.TemporaryDirectory() as export_directory:
+                exported_track_paths = await self._export_missing_tracks(
+                    missing_tracks, source, export_directory
+                )
+                asyncio.gather(
+                    *(
+                        target.import_track(track_path)
+                        for track_path in exported_track_paths
+                    )
+                )
+
+        # TODO: Update local playlists
+        # TODO: Update client playlists
+
+        logger.info(f"Finished updating {source} to match {target}")
 
     async def _get_missing_tracks(
         self, source: type[Library], target: type[Library]
@@ -71,3 +88,23 @@ class App:
             .exclude(isrc=None)
             .exclude(isrc__in=target_isrcs)
         )
+
+    async def _export_missing_tracks(
+        self,
+        missing_tracks: List[type[Track]],
+        source: type[Library],
+        export_directory: Path,
+    ) -> None:
+        logger.info(f"Exporting {len(missing_tracks)} from {source}")
+        exported_track_paths = await asyncio.gather(
+            *(source.export_track(track, export_directory) for track in missing_tracks),
+            return_exceptions=True,
+        )
+        result = []
+        for i, path in enumerate(exported_track_paths):
+            if isinstance(path, Exception):
+                logger.error(f"Failed to export {missing_tracks[i]}: {path}")
+            else:
+                result.append(path)
+
+        return result

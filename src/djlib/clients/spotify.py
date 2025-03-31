@@ -13,6 +13,7 @@ from librespot.zeroconf import ZeroconfServer
 from mutagen.id3 import (
     APIC,
     ID3,
+    TALB,
     TIT2,
     TPE1,
     TPE2,
@@ -31,7 +32,7 @@ from .abstract import Client, TrackExportError
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 1
-CONCURRENT_DOWNLOADS = 1
+CONCURRENT_DOWNLOADS = 4
 CHUNK_SIZE = 65536
 
 
@@ -271,6 +272,9 @@ class SpotifyClient(Client):
         if track.artist:
             audio.add(TPE1(text=track.artist, encoding=Encoding.UTF8))
 
+        if track.album:
+            audio.add(TALB(text=track.album, encoding=Encoding.UTF8))
+
         if track.album_artist:
             audio.add(TPE2(text=track.album_artist, encoding=Encoding.UTF8))
 
@@ -322,3 +326,7 @@ class SpotifyClient(Client):
             audio_bytes.write(chunk)
 
         return audio_bytes
+
+    async def import_track(self, track_path: Path) -> SpotifyTrack:
+        """Import track at TRACK_PATH to external library."""
+        raise NotImplementedError()

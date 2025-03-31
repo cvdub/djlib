@@ -36,8 +36,13 @@ def config():
             new=user_cache_dir("djlib-test", ensure_exists=True),
         ),
         patch.object(Config, "database_file", new=":memory:"),
+        patch.object(
+            Config,
+            "music_directory",
+            new=Path(__file__).parent / "music",
+        ),
     ):
-        yield
+        yield Config
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -130,3 +135,8 @@ async def rekordbox_track_factory(database):
         )
 
     return _rekordbox_track_factory
+
+
+@pytest.fixture
+def track_path(config):
+    return config.music_directory / "HVOB/Silk/03 Torrid Soul.mp3"

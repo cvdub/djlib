@@ -19,6 +19,9 @@ from .abstract import Client
 class RekordboxClient(Client):
     """Class for interfacing with a rekordbox library."""
 
+    def __init__(self):
+        self._rekordbox_database_semaphore = asyncio.Semaphore()
+
     async def connect(self) -> None:
         logger.debug(f"Starting {self}")
         # TODO: Download rekordbox db key
@@ -105,9 +108,29 @@ class RekordboxClient(Client):
     async def export_track(
         self, track: type[RekordboxTrack], export_directory: Path
     ) -> Path:
-        logger.info(f"Exporting {track} to {export_directory}")
+        logger.debug(f"Exporting {track} to {export_directory}")
         await asyncio.to_thread(
             shutil.copy,
             track.path,
             export_directory / f"{track.isrc}{track.path.suffix}",
         )
+
+    async def import_track(self, track: RekordboxTrack) -> None:
+        logger.debug(f"Importing {track}")
+        non_unique_import_path = track.import_path()
+        if non_unique_import_path.exists():
+            logger.warning(f"Track already exists at {non_unique_import_path}")
+
+        import_path = track.import_path(unique=True)
+        logger.debug(f"Moving {track.path} to {import_path}")
+        import_path.parent.mkdir(parents=True, exist_ok=True)
+        track.path.rename(import_path)
+        track.path = import_path
+
+        async with self._rekordbox_database_semaphore:
+            db_track = self._rekordbox_database.add_content(
+                track.path, Title=track.title
+            )
+            self._rekordbox_database.commit()
+
+        track.external_id = db_track.ID

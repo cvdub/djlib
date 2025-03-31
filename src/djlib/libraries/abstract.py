@@ -1,5 +1,6 @@
 import asyncio
 from abc import ABC
+from pathlib import Path
 from types import TracebackType
 from typing import Optional, Self, Type
 
@@ -114,3 +115,12 @@ class Library(ABC):
 
     async def _refresh_non_playlist_tracks(self) -> None:
         pass
+
+    async def export_track(self, track: type[Track], export_directory: Path) -> Path:
+        return await self._client.export_track(track, export_directory)
+
+    async def import_track(self, track_path: Path) -> type[Track]:
+        track = Track.from_file(track_path)
+        await self._client.import_track(track)
+        await track.save()
+        logger.debug(f"Imported {track}")

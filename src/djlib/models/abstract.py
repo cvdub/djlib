@@ -1,6 +1,8 @@
 from enum import Enum
+from pathlib import Path
 from typing import List, Optional, Self
 
+from mutagen.id3 import ID3
 from tortoise import Tortoise, fields, transactions
 from tortoise.models import Model
 from tortoise.queryset import QuerySet
@@ -131,6 +133,29 @@ class Track(Model):
         return cls.filter(
             playlist_tracks__playlist__status=PlaylistStatus.SYNCED
         ).distinct()
+
+    @classmethod
+    def from_file(cls, track_path: Path) -> Self:
+        audio = ID3(track_path)
+        try:
+            track_number = int(str(audio.get("TRCK")))
+        except ValueError:
+            track_number = None
+
+        try:
+            disc_number = int(str(audio.get("TPOS")))
+        except ValueError:
+            disc_number = None
+
+        return cls(
+            title=audio.get("TIT2"),
+            artist=audio.get("TPE1"),
+            album=audio.get("TALB"),
+            album_artist=audio.get("TPE2"),
+            track_number=track_number,
+            disc_number=disc_number,
+            isrc=audio.get("TSRC"),
+        )
 
 
 class PlaylistTrack(Model):

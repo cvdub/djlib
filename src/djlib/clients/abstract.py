@@ -56,3 +56,8 @@ class Client(ABC):
         Returns a path to the exported track.
         """
         pass
+
+    @abstractmethod
+    async def import_track(self, track_path: Path) -> type[Track]:
+        """Import track at TRACK_PATH to external library."""
+        pass
