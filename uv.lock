@@ -166,7 +166,7 @@ dev = [
 requires-dist = [
     { name = "audioop-lts", specifier = ">=0.2.1" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.28.1" },
-    { name = "librespot", git = "https://github.com/kokarare1212/librespot-python?rev=59b15ae" },
+    { name = "librespot", git = "https://github.com/cvdub/librespot-python?rev=a5db002" },
     { name = "mutagen", specifier = ">=1.47.0" },
     { name = "platformdirs", specifier = ">=4.3.6" },
     { name = "pydub", specifier = ">=0.25.1" },
@@ -329,7 +329,7 @@ wheels = [
 [[package]]
 name = "librespot"
 version = "0.0.9"
-source = { git = "https://github.com/kokarare1212/librespot-python?rev=59b15ae#59b15ae876bd5344de42c4269dd8fa99d87da1bd" }
+source = { git = "https://github.com/cvdub/librespot-python?rev=a5db002#a5db002f0015a4a6e70abd45e3c6ff20db593ed2" }
 dependencies = [
     { name = "defusedxml" },
     { name = "protobuf" },
