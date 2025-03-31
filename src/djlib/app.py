@@ -48,7 +48,9 @@ class App:
 
     async def refresh(self) -> None:
         """Refresh all libraries."""
-        await asyncio.gather(*(library.refresh() for library in self._libraries))
+        await asyncio.gather(
+            *(library.refresh() for library in self._libraries.values())
+        )
 
     async def update(self, source: type[Library], target: type[Library]) -> None:
         """Update tracks and playlists TARGET to match SOURCE."""
