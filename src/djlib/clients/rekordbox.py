@@ -9,6 +9,7 @@ from mutagen.id3 import ID3
 from pyrekordbox import Rekordbox6Database
 from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist, PlaylistType
 from sqlalchemy import asc
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 
 from ..logging import logger
@@ -128,9 +129,40 @@ class RekordboxClient(Client):
         track.path = import_path
 
         async with self._rekordbox_database_semaphore:
+            # TODO: Make async
             db_track = self._rekordbox_database.add_content(
                 track.path, Title=track.title
             )
             self._rekordbox_database.commit()
 
         track.external_id = db_track.ID
+
+    async def update_playlist(self, playlist: RekordboxPlaylist) -> None:
+        """Update PLAYLIST in rekordbox."""
+        # TODO: Make async
+        async with self._rekordbox_database_semaphore:
+            logger.debug(f"Updating {playlist}")
+            try:
+                db_playlist = self._rekordbox_database.get_playlist(
+                    Name=playlist.name, Attribute=PlaylistType.PLAYLIST
+                ).one()
+            except NoResultFound:
+                db_playlist = self._rekordbox_database.create_playlist(playlist.name)
+                logger.debug(f"Created playlist on rekordbox: {playlist.name}")
+                self._rekordbox_database.commit()
+
+            db_songs = sorted(db_playlist.Songs, key=lambda s: s.TrackNo)
+            db_song_ids = [int(s.Content.ID) for s in db_songs]
+            local_song_ids = await playlist.tracks.values_list("external_id", flat=True)
+            local_song_ids = list(local_song_ids)
+            if db_song_ids != local_song_ids:
+                for song in db_playlist.Songs:
+                    self._rekordbox_database.remove_from_playlist(db_playlist, song)
+
+                for track in playlist.tracks:
+                    db_track = self._rekordbox_database.get_content(
+                        ID=track.rekordbox_id
+                    )
+                    self._rekordbox_database.add_to_playlist(db_playlist, db_track)
+
+                self._rekordbox_database.commit()

@@ -7,7 +7,7 @@ from typing import List, Optional, Self, Type
 from .database import Database
 from .libraries import Library, RekordboxLibrary, SpotifyLibrary
 from .logging import logger
-from .models import Track
+from .models import PlaylistStatus, Track
 
 
 class App:
@@ -66,8 +66,10 @@ class App:
                     )
                 )
 
-        # TODO: Update local playlists
-        # TODO: Update client playlists
+        source_playlists = await source.playlists.filter(status=PlaylistStatus.SYNCED)
+        async with asyncio.TaskGroup() as tg:
+            for source_playlist in source_playlists:
+                tg.create_task(target.update_playlist_to_match_source(source_playlist))
 
         logger.info(f"Finished updating {source} to match {target}")
 

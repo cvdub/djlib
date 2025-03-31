@@ -61,3 +61,8 @@ class Client(ABC):
     async def import_track(self, track_path: Path) -> type[Track]:
         """Import track at TRACK_PATH to external library."""
         pass
+
+    @abstractmethod
+    async def update_playlist(self, playlist: type[Playlist]) -> None:
+        """Update PLAYLIST on external library."""
+        pass

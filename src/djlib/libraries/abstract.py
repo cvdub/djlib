@@ -8,7 +8,7 @@ from tortoise.exceptions import IntegrityError
 
 from ..clients import Client
 from ..logging import logger
-from ..models import Playlist, Track
+from ..models import Playlist, PlaylistStatus, Track
 
 
 class Library(ABC):
@@ -124,3 +124,27 @@ class Library(ABC):
         await self._client.import_track(track)
         await track.save()
         logger.debug(f"Imported {track}")
+
+    async def update_playlist_to_match_source(
+        self, source_playlist: type[Playlist]
+    ) -> None:
+        playlist, created = self.playlists.update_or_create(
+            name=source_playlist.name, defaults={"status": PlaylistStatus.SYNCED}
+        )
+        if created:
+            logger.debug(f"Created {playlist}")
+
+        logger.debug(f"Updating {playlist} to match {source_playlist}")
+
+        tracks = []
+        async for source_track in source_playlist.tracks.exclude(isrc=None):
+            try:
+                track = await self.tracks.get(isrc=source_track.isrc)
+            except self.tracks.DoesNotExist:
+                logger.warning(f"No {self.tracks} found with ISRC: {source_track.isrc}")
+            else:
+                tracks.append(track)
+
+        await playlist.add_tracks(*tracks, delete_existing=True)
+
+        # TODO: Update client

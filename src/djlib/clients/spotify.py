@@ -305,6 +305,12 @@ class SpotifyClient(Client):
 
         await asyncio.to_thread(audio.save)
 
+        # TODO: Add config options for normalization
+        logger.debug(f"Normalizing {export_path}")
+        await asyncio.create_subprocess_exec(
+            "mp3gain", "-e", "-r", "-k", "-d", "6", "-p", "-s", "r", export_path
+        )
+
         logger.debug(f"Finished exporting {track}")
 
         return export_path
@@ -329,4 +335,7 @@ class SpotifyClient(Client):
 
     async def import_track(self, track_path: Path) -> SpotifyTrack:
         """Import track at TRACK_PATH to external library."""
-        raise NotImplementedError()
+        raise NotImplementedError()  # TODO
+
+    async def update_playlist(self, playlist: SpotifyPlaylist) -> None:
+        raise NotImplementedError()  # TODO

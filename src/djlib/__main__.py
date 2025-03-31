@@ -8,6 +8,7 @@ from .app import App
 class Command(str, Enum):
     REFRESH = "refresh"
     EXPORT = "export"
+    # TODO: Add command to list back ends
 
 
 async def main():
@@ -23,6 +24,7 @@ async def main():
             case Command.REFRESH:
                 await app.refresh()
             case Command.EXPORT:
+                # TODO: Allow user to specify source and target
                 await app.update(app.spotify, app.rekordbox)
 
 
