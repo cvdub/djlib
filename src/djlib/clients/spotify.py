@@ -31,6 +31,7 @@ from .abstract import Client, TrackExportError
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 1
+CONCURRENT_DOWNLOADS = 1
 CHUNK_SIZE = 65536
 
 
@@ -43,6 +44,7 @@ class SpotifyClient(Client):
 
     def __init__(self):
         self._api_semaphore = asyncio.Semaphore(CONCURRENT_API_CALLS)
+        self._download_semaphore = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
         self._librespot_credentials_file = Config.cache_directory / Path(
             "credentials.json"
         )
@@ -250,7 +252,8 @@ class SpotifyClient(Client):
         if not track.is_playable:
             raise TrackExportError(f"{track} is not playable, skipping export")
 
-        audio_bytes = await asyncio.to_thread(self._get_track_stream, track)
+        async with self._download_semaphore:
+            audio_bytes = await asyncio.to_thread(self._get_track_stream, track)
 
         logger.debug(f"Converting {track} to MP3")
         audio_bytes.seek(0)
