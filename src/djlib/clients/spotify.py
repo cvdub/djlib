@@ -167,7 +167,7 @@ class SpotifyClient(Client):
 
         relinked_items_map = {}
         if relinked_track_ids:
-            logger.debug(f"Relinking {len(relinked_track_ids)} Spotify tracks")
+            logger.debug(f"Relinking {len(relinked_track_ids)} tracks in {playlist}")
 
         # Pull metadata for relinked tracks in batches of 100
         for i in range(0, len(relinked_track_ids), 99):
