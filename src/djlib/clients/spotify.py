@@ -248,7 +248,7 @@ class SpotifyClient(Client):
     async def export_track(
         self, track: type[SpotifyTrack], export_directory: Path
     ) -> Optional[Path]:
-        logger.info(f"Exporting {track}")
+        logger.debug(f"Exporting {track}")
         if not track.is_playable:
             raise TrackExportError(f"{track} is not playable, skipping export")
 
