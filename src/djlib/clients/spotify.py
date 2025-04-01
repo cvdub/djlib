@@ -32,7 +32,10 @@ from .abstract import Client, TrackExportError
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 1
-CONCURRENT_DOWNLOADS = 4
+# TODO: Fix concurrent downloads.
+# Seems like the session isn't thread safe
+CONCURRENT_DOWNLOADS = 1
+
 CHUNK_SIZE = 65536
 
 
@@ -308,7 +311,17 @@ class SpotifyClient(Client):
         # TODO: Add config options for normalization
         logger.debug(f"Normalizing {export_path}")
         await asyncio.create_subprocess_exec(
-            "mp3gain", "-e", "-r", "-k", "-d", "6", "-p", "-s", "r", "-q", export_path
+            "mp3gain",
+            "-e",
+            "-r",
+            "-k",
+            "-d",
+            "6",
+            "-p",
+            "-s",
+            "r",
+            export_path,
+            stdout=asyncio.subprocess.DEVNULL,
         )
 
         logger.debug(f"Finished exporting {track}")

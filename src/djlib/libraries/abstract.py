@@ -73,14 +73,14 @@ class Library(ABC):
                 client_playlists.append(client_playlist)
                 tg.create_task(self._refresh_playlist(client_playlist))
 
-            tg.create_task(self._refresh_non_playlist_tracks())
-
         # Delete local playlists that no longer exist on client
         await self.playlists.exclude(
             external_id__in=(
                 client_playlist.external_id for client_playlist in client_playlists
             )
         ).delete()
+
+        await self._refresh_non_playlist_tracks()
 
         logger.info(f"Finished refreshing {self}")
 
@@ -120,7 +120,7 @@ class Library(ABC):
         return await self._client.export_track(track, export_directory)
 
     async def import_track(self, track_path: Path) -> type[Track]:
-        track = Track.from_file(track_path)
+        track = self.tracks.from_file(track_path)
         await self._client.import_track(track)
         await track.save()
         logger.debug(f"Imported {track}")
@@ -128,7 +128,7 @@ class Library(ABC):
     async def update_playlist_to_match_source(
         self, source_playlist: type[Playlist]
     ) -> None:
-        playlist, created = self.playlists.update_or_create(
+        playlist, created = await self.playlists.update_or_create(
             name=source_playlist.name, defaults={"status": PlaylistStatus.SYNCED}
         )
         if created:
@@ -138,13 +138,13 @@ class Library(ABC):
 
         tracks = []
         async for source_track in source_playlist.tracks.exclude(isrc=None):
-            try:
-                track = await self.tracks.get(isrc=source_track.isrc)
-            except self.tracks.DoesNotExist:
-                logger.warning(f"No {self.tracks} found with ISRC: {source_track.isrc}")
-            else:
+            track = await self.tracks.filter(isrc=source_track.isrc).first()
+            if track:
                 tracks.append(track)
+            else:
+                logger.warning(
+                    f"No {self.tracks.__name__} found with ISRC: {source_track.isrc}"
+                )
 
         await playlist.add_tracks(*tracks, delete_existing=True)
-
-        # TODO: Update client
+        await self._client.update_playlist(playlist)

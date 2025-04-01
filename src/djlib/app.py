@@ -59,9 +59,9 @@ class App:
         if missing_tracks:
             with tempfile.TemporaryDirectory() as export_directory:
                 exported_track_paths = await self._export_missing_tracks(
-                    missing_tracks, source, export_directory
+                    missing_tracks, source, Path(export_directory)
                 )
-                asyncio.gather(
+                await asyncio.gather(
                     *(
                         target.import_track(track_path)
                         for track_path in exported_track_paths
@@ -99,16 +99,16 @@ class App:
         source: type[Library],
         export_directory: Path,
     ) -> None:
-        logger.info(f"Exporting {len(missing_tracks)} from {source}")
+        logger.info(f"Exporting {len(missing_tracks)} tracks from {source}")
         exported_track_paths = await asyncio.gather(
             *(source.export_track(track, export_directory) for track in missing_tracks),
             return_exceptions=True,
         )
-        result = []
-        for i, path in enumerate(exported_track_paths):
-            if isinstance(path, Exception):
-                logger.error(f"Failed to export {missing_tracks[i]}: {path}")
+        results = []
+        for i, result in enumerate(exported_track_paths):
+            if isinstance(result, Exception):
+                logger.error(f"Export failed: {result}")
             else:
-                result.append(path)
+                results.append(result)
 
-        return result
+        return results

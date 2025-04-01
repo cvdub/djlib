@@ -2,10 +2,8 @@ import asyncio
 import shutil
 from collections.abc import Generator
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
-from mutagen import MutagenError
-from mutagen.id3 import ID3
 from pyrekordbox import Rekordbox6Database
 from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist, PlaylistType
 from sqlalchemy import asc
@@ -46,41 +44,7 @@ class RekordboxClient(Client):
         # TODO: Read ISRC tags concurrently
         db_tracks = await asyncio.to_thread(self._get_playlist_contents, playlist)
         for db_track in db_tracks:
-            # ISRC isn't stored properly by rekordbox,
-            # so it must be pulled from the ID3 tag
-            # TODO: Pull isrc tags concurrently
-            isrc = await asyncio.to_thread(self._read_isrc_tag, db_track.FolderPath)
-            try:
-                track_number = int(db_track.TrackNo)
-            except TypeError:
-                track_number = 1
-
-            if track_number < 1:
-                logger.warning(
-                    f"Invalid track number: {track_number} on "
-                    f"RekordboxTrack {db_track.FolderPath}"
-                )
-                track_number = None
-
-            try:
-                disc_number = int(db_track.DiscNo)
-            except TypeError:
-                disc_number = 1
-
-            if disc_number < 0:
-                disc_number = 0
-
-            yield RekordboxTrack(
-                external_id=db_track.ID,
-                title=db_track.Title,
-                artist=getattr(db_track.Artist, "Name", None),
-                album=getattr(db_track.Album, "Name", None),
-                album_artist=getattr(db_track.AlbumArtist, "Name", None),
-                track_number=track_number,
-                disc_number=disc_number,
-                path=Path(db_track.FolderPath),
-                isrc=isrc,
-            )
+            yield await RekordboxTrack.from_rb(db_track)
 
     def _get_playlist_contents(self, playlist: RekordboxPlaylist) -> List[DjmdContent]:
         logger.debug(f"Getting playlist contents for {playlist}")
@@ -92,19 +56,6 @@ class RekordboxClient(Client):
             .all()
         )
         return [song_playlist.Content for song_playlist in song_playlist_objects]
-
-    def _read_isrc_tag(self, track_path: Path) -> Optional[str]:
-        try:
-            audio = ID3(track_path)
-        except MutagenError:
-            logger.warning(f"Failed to read ISRC tag from {track_path}")
-            return None
-
-        isrc = str(audio.get("TSRC", "")) or None
-        if isrc:
-            isrc = isrc.replace("-", "")
-
-        return isrc
 
     async def export_track(
         self, track: type[RekordboxTrack], export_directory: Path
@@ -159,10 +110,20 @@ class RekordboxClient(Client):
                 for song in db_playlist.Songs:
                     self._rekordbox_database.remove_from_playlist(db_playlist, song)
 
-                for track in playlist.tracks:
+                async for track in playlist.tracks.all():
                     db_track = self._rekordbox_database.get_content(
-                        ID=track.rekordbox_id
+                        ID=track.external_id
                     )
                     self._rekordbox_database.add_to_playlist(db_playlist, db_track)
 
                 self._rekordbox_database.commit()
+
+    async def get_non_playlist_tracks(self) -> Generator[RekordboxTrack]:
+        non_playlist_tracks = (
+            self._rekordbox_database.query(DjmdContent)
+            .outerjoin(DjmdSongPlaylist, DjmdContent.ID == DjmdSongPlaylist.ContentID)
+            .filter(DjmdSongPlaylist.ID.is_(None))
+            .all()
+        )
+        for db_track in non_playlist_tracks:
+            yield await RekordboxTrack.from_rb(db_track)
