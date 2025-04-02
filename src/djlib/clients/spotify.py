@@ -46,9 +46,10 @@ class InvalidSpotifyTrackData(Exception):
 class SpotifyClient(Client):
     """Class for interfacing with a Spotify library."""
 
+    _api_semaphore = asyncio.Semaphore(CONCURRENT_API_CALLS)
+    _download_semaphore = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
+
     def __init__(self):
-        self._api_semaphore = asyncio.Semaphore(CONCURRENT_API_CALLS)
-        self._download_semaphore = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
         self._librespot_credentials_file = Config.cache_directory / Path(
             "credentials.json"
         )

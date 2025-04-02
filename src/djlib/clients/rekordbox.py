@@ -18,8 +18,7 @@ from .abstract import Client
 class RekordboxClient(Client):
     """Class for interfacing with a rekordbox library."""
 
-    def __init__(self):
-        self._rekordbox_database_semaphore = asyncio.Semaphore()
+    _rekordbox_database_semaphore = asyncio.Semaphore()
 
     async def connect(self) -> None:
         logger.debug(f"Starting {self}")
