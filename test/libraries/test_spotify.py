@@ -1,4 +1,7 @@
+import asyncio
+
 import pytest
+from djlib.clients.spotify import CONCURRENT_API_CALLS
 from djlib.libraries import SpotifyLibrary
 from djlib.models import SpotifyPlaylist
 
@@ -6,6 +9,7 @@ from djlib.models import SpotifyPlaylist
 @pytest.fixture
 async def library(database):
     async with SpotifyLibrary() as library:
+        library._client._api_semaphore = asyncio.Semaphore(CONCURRENT_API_CALLS)
         yield library
 
 

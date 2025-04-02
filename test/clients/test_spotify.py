@@ -1,11 +1,15 @@
+import asyncio
+
 import pytest
 from djlib.clients import SpotifyClient
+from djlib.clients.spotify import CONCURRENT_API_CALLS
 from djlib.models import SpotifyPlaylist
 
 
 @pytest.fixture
-async def client(scope="file"):
+async def client():
     async with SpotifyClient() as client:
+        client._api_semaphore = asyncio.Semaphore(CONCURRENT_API_CALLS)
         yield client
 
 
