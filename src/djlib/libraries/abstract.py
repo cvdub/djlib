@@ -126,9 +126,9 @@ class Library(ABC):
 
     async def import_track(self, track_path: Path) -> type[Track]:
         track = await asyncio.to_thread(self.tracks.from_file, track_path)
-        # await self._client.import_track(track)
-        # await track.save()
-        # logger.debug(f"Imported {track}")
+        await self._client.import_track(track)
+        await track.save()
+        logger.debug(f"Imported {track}")
 
     async def update_playlist_to_match_source(
         self, source_playlist: type[Playlist]
@@ -136,23 +136,48 @@ class Library(ABC):
         playlist, created = await self.playlists.update_or_create(
             name=source_playlist.name, defaults={"status": PlaylistStatus.SYNCED}
         )
+
         if created:
             logger.debug(f"Created {playlist}")
 
-        # TODO: Only update playlist if tracks differ
-        logger.debug(f"Updating {playlist} to match {source_playlist}")
-        tracks = []
-        async for source_track in source_playlist.tracks.exclude(isrc=None):
-            track = await self.tracks.filter(isrc=source_track.isrc).first()
-            if track:
-                tracks.append(track)
-            # else:
-            #     logger.warning(
-            #         f"No {self.tracks.__name__} found with ISRC: {source_track.isrc}"
-            #     )
+        # Get all source track ISRCs at once
+        source_isrcs = await source_playlist.tracks.exclude(isrc=None).values_list(
+            "isrc", flat=True
+        )
+        source_isrcs = list(source_isrcs)  # Convert to list for comparison
 
-        await playlist.add_tracks(*tracks, delete_existing=True)
-        await self._client.update_playlist(playlist)
+        # Get current playlist track ISRCs
+        current_isrcs = await playlist.tracks.exclude(isrc=None).values_list(
+            "isrc", flat=True
+        )
+        current_isrcs = list(current_isrcs)  # Convert to list for comparison
+
+        # Only update if the tracks differ (by ISRC and order)
+        if current_isrcs != source_isrcs:
+            logger.debug(
+                f"Updating {playlist} to match {source_playlist} - tracks differ"
+            )
+
+            # Find all matching tracks in a single query
+            matching_tracks = await self.tracks.filter(isrc__in=source_isrcs)
+
+            # Create a lookup map for faster access
+            tracks_by_isrc = {track.isrc: track for track in matching_tracks}
+
+            # Build the final tracks list in the same order as source tracks
+            tracks = []
+            for isrc in source_isrcs:
+                if track := tracks_by_isrc.get(isrc):
+                    tracks.append(track)
+                else:
+                    logger.warning(f"Missing track for {playlist} with ISRC: {isrc}")
+
+            await playlist.add_tracks(*tracks, delete_existing=True)
+            await self._client.update_playlist(playlist)
+        else:
+            logger.debug(
+                f"No update needed for {playlist} - tracks match {source_playlist}"
+            )
 
     async def tracks_not_in(self, target: type[Self]) -> List[type[Track]]:
         """Return a QuerySet of tracks from synced playlists not found in OTHER."""

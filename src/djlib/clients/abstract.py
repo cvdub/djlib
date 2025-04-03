@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Generator
 from pathlib import Path
 from types import TracebackType
-from typing import AsyncGenerator, Optional, Self, Type, Union
+from typing import AsyncGenerator, Optional, Self, Type
 
 from ..models import Playlist, Track
 

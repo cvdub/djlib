@@ -1,7 +1,6 @@
 import logging
 from contextlib import contextmanager
 
-from pydub import AudioSegment
 
 from .config import Config
 
