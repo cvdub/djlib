@@ -1,13 +1,15 @@
 import asyncio
 import tempfile
+import time
 from pathlib import Path
 from types import TracebackType
-from typing import List, Optional, Self, Type
+from typing import Optional, Self, Type
 
+from .clients import TrackExportError
 from .database import Database
 from .libraries import Library, RekordboxLibrary, SpotifyLibrary
 from .logging import logger
-from .models import PlaylistStatus, Track
+from .models import PlaylistStatus
 
 
 class App:
@@ -54,61 +56,42 @@ class App:
 
     async def update(self, source: type[Library], target: type[Library]) -> None:
         """Update tracks and playlists TARGET to match SOURCE."""
+        start_time = time.perf_counter()
         logger.info(f"Updating {source} to match {target}")
-        missing_tracks = await self._get_missing_tracks(source, target)
+
+        logger.debug(f"Getting tracks in {source} not in {target}")
+        missing_tracks = await source.tracks_not_in(target)
+        missing_tracks = missing_tracks[:4]
         if missing_tracks:
-            with tempfile.TemporaryDirectory() as export_directory:
-                exported_track_paths = await self._export_missing_tracks(
-                    missing_tracks, source, Path(export_directory)
-                )
-                await asyncio.gather(
-                    *(
-                        target.import_track(track_path)
-                        for track_path in exported_track_paths
-                    )
-                )
+            logger.info(f"Exporting {len(missing_tracks)} tracks from {source}")
+
+        with tempfile.TemporaryDirectory() as export_directory:
+            export_directory = Path(export_directory)
+            export_track_tasks = []
+            for track in missing_tracks:
+                task = source.export_track(track, export_directory)
+                export_track_tasks.append(task)
+
+            async with asyncio.TaskGroup() as tg:
+                num_exported = 0
+                for task in asyncio.as_completed(export_track_tasks):
+                    result = await task
+                    if isinstance(result, TrackExportError):
+                        logger.warning(f"{result}")
+                    else:
+                        num_exported += 1
+                        tg.create_task(target.import_track(result))
+
+        logger.info(f"Imported {num_exported:,} tracks to {target}")
 
         source_playlists = await source.playlists.filter(status=PlaylistStatus.SYNCED)
         async with asyncio.TaskGroup() as tg:
             for source_playlist in source_playlists:
                 tg.create_task(target.update_playlist_to_match_source(source_playlist))
 
-        logger.info(f"Finished updating {source} to match {target}")
-
-    async def _get_missing_tracks(
-        self, source: type[Library], target: type[Library]
-    ) -> List[type[Track]]:
-        """Return a QuerySet of tracks from synced playlists not found in TARGET."""
-        logger.debug(f"Getting tracks in {source} not in {target}")
-        target_isrcs = (
-            await target.tracks.all()
-            .exclude(isrc=None)
-            .order_by("isrc")
-            .distinct()
-            .values_list("isrc", flat=True)
+        end_time = time.perf_counter()
+        time_elapsed = end_time - start_time
+        logger.info(
+            f"Finished updating {source} to match {target} (completed in "
+            f"{time_elapsed:,.2f} seconds)"
         )
-        return (
-            await source.tracks.in_synced_playlists()
-            .exclude(isrc=None)
-            .exclude(isrc__in=target_isrcs)
-        )
-
-    async def _export_missing_tracks(
-        self,
-        missing_tracks: List[type[Track]],
-        source: type[Library],
-        export_directory: Path,
-    ) -> None:
-        logger.info(f"Exporting {len(missing_tracks)} tracks from {source}")
-        exported_track_paths = await asyncio.gather(
-            *(source.export_track(track, export_directory) for track in missing_tracks),
-            return_exceptions=True,
-        )
-        results = []
-        for i, result in enumerate(exported_track_paths):
-            if isinstance(result, Exception):
-                logger.error(f"Export failed: {result}")
-            else:
-                results.append(result)
-
-        return results

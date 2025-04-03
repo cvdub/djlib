@@ -3,7 +3,8 @@ import time
 from collections.abc import Generator
 from io import BytesIO
 from pathlib import Path
-from typing import List, Optional
+from queue import Empty
+from typing import List
 
 import httpx
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
@@ -32,11 +33,9 @@ from .abstract import Client, TrackExportError
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 1
-# TODO: Fix concurrent downloads.
-# Seems like the session isn't thread safe
 CONCURRENT_DOWNLOADS = 1
 
-CHUNK_SIZE = 65536
+CHUNK_SIZE = 65_536
 
 
 class InvalidSpotifyTrackData(Exception):
@@ -63,19 +62,24 @@ class SpotifyClient(Client):
         if not self._librespot_credentials_file.exists():
             await asyncio.to_thread(self._get_credentials)
 
-        librespot_config = Session.Configuration.Builder().set_stored_credential_file(
-            self._librespot_credentials_file
+        self._librespot_config = (
+            Session.Configuration.Builder().set_stored_credential_file(
+                self._librespot_credentials_file
+            )
         )
+        self._librespot_session = await asyncio.to_thread(
+            self._create_librespot_session
+        )
+
+    def _create_librespot_session(self) -> Session:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                self._librespot_session = await asyncio.to_thread(
-                    Session.Builder(librespot_config).stored_file().create
-                )
+                return Session.Builder(self._librespot_config).stored_file().create()
             except Exception:
                 if attempt == max_retries - 1:  # Last attempt
                     raise  # Re-raise the last exception
-                await asyncio.sleep(1)  # Wait before retrying
+                time.sleep(1)  # Wait before retrying
             else:
                 break
 
@@ -254,20 +258,37 @@ class SpotifyClient(Client):
 
     async def export_track(
         self, track: type[SpotifyTrack], export_directory: Path
-    ) -> Optional[Path]:
+    ) -> Path:
         logger.debug(f"Exporting {track}")
         if not track.is_playable:
             raise TrackExportError(f"{track} is not playable, skipping export")
 
         async with self._download_semaphore:
-            audio_bytes = await asyncio.to_thread(self._get_track_stream, track)
+            retry_attempt = 1
+            max_retries = 3
+            while True:
+                try:
+                    audio_bytes = await asyncio.to_thread(self._get_track_stream, track)
+                except TrackExportError as e:
+                    if retry_attempt >= max_retries:
+                        raise
+                    else:
+                        logger.warning(f"[{retry_attempt}/{max_retries}] {e}")
+                        await asyncio.sleep(1)
+                        retry_attempt += 1
+                else:
+                    break
 
         logger.debug(f"Converting {track} to MP3")
-        audio_bytes.seek(0)
-        audio = AudioSegment.from_file(audio_bytes, format="ogg")
+        audio = await asyncio.to_thread(
+            AudioSegment.from_file, audio_bytes, format="ogg"
+        )
         export_path = export_directory / f"{track.isrc}.mp3"
         await asyncio.to_thread(
-            audio.export, export_path, format="mp3", parameters=["-q:a", "0"]
+            audio.export,
+            export_path,
+            format="mp3",
+            parameters=["-q:a", "0"],
         )
 
         logger.debug(f"Setting ID3 tags on {track}")
@@ -323,6 +344,7 @@ class SpotifyClient(Client):
             "r",
             export_path,
             stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
         )
 
         logger.debug(f"Finished exporting {track}")
@@ -330,22 +352,41 @@ class SpotifyClient(Client):
         return export_path
 
     def _get_track_stream(self, track: SpotifyTrack) -> BytesIO:
-        logger.debug(f"Getting audio stream for {track}")
-        track_stream = self._librespot_session.content_feeder().load(
-            TrackId.from_base62(track.external_id),
-            VorbisOnlyAudioQuality(AudioQuality.VERY_HIGH),
-            True,  # Pre-load
-            None,
-        )
-        audio_bytes = BytesIO()
-        while True:
-            chunk = track_stream.input_stream.stream().read(CHUNK_SIZE)
-            if not chunk:
-                break
+        try:
+            logger.debug(f"Getting audio stream for {track}")
+            track_stream = self._librespot_session.content_feeder().load(
+                TrackId.from_base62(track.external_id),
+                VorbisOnlyAudioQuality(AudioQuality.VERY_HIGH),
+                False,  # Pre-load
+                None,
+            )
+            total_size = track_stream.input_stream.size
+            downloaded = 0
+            audio_bytes = BytesIO()
+            last_progress_percentage = 0
+            fail_count = 0
+            while True:
+                data = track_stream.input_stream.stream().read(CHUNK_SIZE)
+                if not data:
+                    fail_count += 1
+                    if fail_count > 5:
+                        break
 
-            audio_bytes.write(chunk)
+                downloaded += len(data)
+                audio_bytes.write(data)
 
-        return audio_bytes
+                percent_complete = round(downloaded / total_size * 100)
+                if percent_complete > last_progress_percentage + 10:
+                    logger.debug(
+                        f"[{percent_complete}%] Downloading track stream for {track}"
+                    )
+                    last_progress_percentage = percent_complete
+
+            audio_bytes.seek(0)
+            return audio_bytes
+
+        except Exception as e:
+            raise TrackExportError(f"Failed to get track stream for {track}: {e}")
 
     async def import_track(self, track_path: Path) -> SpotifyTrack:
         """Import track at TRACK_PATH to external library."""

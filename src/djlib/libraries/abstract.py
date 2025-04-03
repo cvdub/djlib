@@ -2,11 +2,11 @@ import asyncio
 from abc import ABC
 from pathlib import Path
 from types import TracebackType
-from typing import Optional, Self, Type
+from typing import List, Optional, Self, Type, Union
 
 from tortoise.exceptions import IntegrityError
 
-from ..clients import Client
+from ..clients import Client, TrackExportError
 from ..logging import logger
 from ..models import Playlist, PlaylistStatus, Track
 
@@ -116,11 +116,16 @@ class Library(ABC):
     async def _refresh_non_playlist_tracks(self) -> None:
         pass
 
-    async def export_track(self, track: type[Track], export_directory: Path) -> Path:
-        return await self._client.export_track(track, export_directory)
+    async def export_track(
+        self, track: type[Track], export_directory: Path
+    ) -> Union[Path, TrackExportError]:
+        try:
+            return await self._client.export_track(track, export_directory)
+        except TrackExportError as e:
+            return e
 
     async def import_track(self, track_path: Path) -> type[Track]:
-        track = self.tracks.from_file(track_path)
+        track = await asyncio.to_thread(self.tracks.from_file, track_path)
         await self._client.import_track(track)
         await track.save()
         logger.debug(f"Imported {track}")
@@ -134,17 +139,28 @@ class Library(ABC):
         if created:
             logger.debug(f"Created {playlist}")
 
+        # TODO: Only update playlist if tracks differ
         logger.debug(f"Updating {playlist} to match {source_playlist}")
-
         tracks = []
         async for source_track in source_playlist.tracks.exclude(isrc=None):
             track = await self.tracks.filter(isrc=source_track.isrc).first()
             if track:
                 tracks.append(track)
-            else:
-                logger.warning(
-                    f"No {self.tracks.__name__} found with ISRC: {source_track.isrc}"
-                )
+            # else:
+            #     logger.warning(
+            #         f"No {self.tracks.__name__} found with ISRC: {source_track.isrc}"
+            #     )
 
         await playlist.add_tracks(*tracks, delete_existing=True)
         await self._client.update_playlist(playlist)
+
+    async def tracks_not_in(self, target: type[Self]) -> List[type[Track]]:
+        """Return a QuerySet of tracks from synced playlists not found in OTHER."""
+        target_isrcs = (
+            await target.tracks.all().exclude(isrc=None).values_list("isrc", flat=True)
+        )
+        return (
+            await self.tracks.in_synced_playlists()
+            .exclude(isrc=None)
+            .exclude(isrc__in=target_isrcs)
+        )

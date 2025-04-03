@@ -1,10 +1,17 @@
 import logging
 from contextlib import contextmanager
 
+from pydub import AudioSegment
+
 from .config import Config
 
+Disable deprecation warnings
 logging.captureWarnings(True)
 
+# Suppress pydub console messages
+# logging.getLogger("pydub").setLevel(logging.CRITICAL)
+
+# Configure djlib logger
 logger = logging.getLogger("djlib")
 logger.setLevel(Config.log_level)
 handler = logging.StreamHandler()
