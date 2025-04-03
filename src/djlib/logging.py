@@ -5,8 +5,8 @@ from pydub import AudioSegment
 
 from .config import Config
 
-Disable deprecation warnings
-logging.captureWarnings(True)
+# Disable deprecation warnings
+# logging.captureWarnings(True)
 
 # Suppress pydub console messages
 # logging.getLogger("pydub").setLevel(logging.CRITICAL)

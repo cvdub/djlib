@@ -61,7 +61,7 @@ class App:
 
         logger.debug(f"Getting tracks in {source} not in {target}")
         missing_tracks = await source.tracks_not_in(target)
-        missing_tracks = missing_tracks[:4]
+        missing_tracks = missing_tracks[:20]
         if missing_tracks:
             logger.info(f"Exporting {len(missing_tracks)} tracks from {source}")
 
@@ -84,10 +84,10 @@ class App:
 
         logger.info(f"Imported {num_exported:,} tracks to {target}")
 
-        source_playlists = await source.playlists.filter(status=PlaylistStatus.SYNCED)
-        async with asyncio.TaskGroup() as tg:
-            for source_playlist in source_playlists:
-                tg.create_task(target.update_playlist_to_match_source(source_playlist))
+        # source_playlists = await source.playlists.filter(status=PlaylistStatus.SYNCED)
+        # async with asyncio.TaskGroup() as tg:
+        #     for source_playlist in source_playlists:
+        #         tg.create_task(target.update_playlist_to_match_source(source_playlist))
 
         end_time = time.perf_counter()
         time_elapsed = end_time - start_time
