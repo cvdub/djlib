@@ -2,7 +2,7 @@ import asyncio
 import shutil
 from collections.abc import Generator
 from pathlib import Path
-from typing import List
+from typing import List, AsyncGenerator
 
 from pyrekordbox import Rekordbox6Database
 from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist, PlaylistType
@@ -29,7 +29,7 @@ class RekordboxClient(Client):
         logger.debug(f"Closing {self}")
         await asyncio.to_thread(self._rekordbox_database.close)
 
-    async def get_playlists(self) -> Generator[RekordboxPlaylist]:
+    async def get_playlists(self) -> AsyncGenerator[RekordboxPlaylist, None]:
         db_playlists = await asyncio.to_thread(
             self._rekordbox_database.get_playlist,
             Attribute=PlaylistType.PLAYLIST,  # Exclude folders and smart playlists
@@ -39,7 +39,7 @@ class RekordboxClient(Client):
 
     async def get_playlist_tracks(
         self, playlist: RekordboxPlaylist
-    ) -> Generator[RekordboxTrack]:
+    ) -> AsyncGenerator[RekordboxTrack, None]:
         # TODO: Read ISRC tags concurrently
         db_tracks = await asyncio.to_thread(self._get_playlist_contents, playlist)
         for db_track in db_tracks:
@@ -117,7 +117,7 @@ class RekordboxClient(Client):
 
                 self._rekordbox_database.commit()
 
-    async def get_non_playlist_tracks(self) -> Generator[RekordboxTrack]:
+    async def get_non_playlist_tracks(self) -> AsyncGenerator[RekordboxTrack, None]:
         non_playlist_tracks = (
             self._rekordbox_database.query(DjmdContent)
             .outerjoin(DjmdSongPlaylist, DjmdContent.ID == DjmdSongPlaylist.ContentID)

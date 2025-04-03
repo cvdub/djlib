@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator
 from pathlib import Path
 from types import TracebackType
-from typing import Optional, Self, Type
+from typing import AsyncGenerator, Optional, Self, Type, Union
 
 from ..models import Playlist, Track
 
@@ -40,13 +40,13 @@ class Client(ABC):
         pass
 
     @abstractmethod
-    async def get_playlists(self) -> Generator[type[Playlist]]:
+    async def get_playlists(self) -> AsyncGenerator[type[Playlist], None]:
         pass
 
     @abstractmethod
     async def get_playlist_tracks(
         self, playlist: type[Playlist]
-    ) -> Generator[type[Track]]:
+    ) -> AsyncGenerator[type[Track], None]:
         pass
 
     @abstractmethod

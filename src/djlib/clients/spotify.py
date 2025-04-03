@@ -4,7 +4,7 @@ from collections.abc import Generator
 from io import BytesIO
 from pathlib import Path
 from queue import Empty
-from typing import List
+from typing import AsyncGenerator, List
 
 import httpx
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
@@ -126,7 +126,7 @@ class SpotifyClient(Client):
 
         return response.json()
 
-    async def _api_items(self, endpoint: str) -> List[dict]:
+    async def _api_items(self, endpoint: str) -> AsyncGenerator[dict, None]:
         response = await self._api_request(endpoint)
         while True:
             for item in response["items"]:
@@ -137,7 +137,7 @@ class SpotifyClient(Client):
             else:
                 break
 
-    async def get_playlists(self) -> Generator[SpotifyPlaylist]:
+    async def get_playlists(self) -> AsyncGenerator[SpotifyPlaylist, None]:
         async for item in self._api_items("me/playlists"):
             yield SpotifyPlaylist(
                 external_id=item["id"],
@@ -147,7 +147,7 @@ class SpotifyClient(Client):
 
     async def get_playlist_tracks(
         self, playlist: SpotifyPlaylist
-    ) -> Generator[SpotifyTrack]:
+    ) -> AsyncGenerator[SpotifyTrack, None]:
         items = []
         async for item in self._api_items(
             f"playlists/{playlist.external_id}/tracks?market=US"
