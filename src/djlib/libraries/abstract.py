@@ -128,7 +128,7 @@ class Library(ABC):
         track = await asyncio.to_thread(self.tracks.from_file, track_path)
         # await self._client.import_track(track)
         # await track.save()
-        logger.debug(f"Imported {track}")
+        # logger.debug(f"Imported {track}")
 
     async def update_playlist_to_match_source(
         self, source_playlist: type[Playlist]
