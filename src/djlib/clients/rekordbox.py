@@ -111,24 +111,24 @@ class RekordboxClient(Client):
         await asyncio.to_thread(import_path.parent.mkdir, parents=True, exist_ok=True)
         await asyncio.to_thread(track.path.rename, import_path)
         track.path = import_path
-        db_track = await asyncio.to_thread(self._save_track, track)
-        track.external_id = db_track.ID
+        db_track_id = await asyncio.to_thread(self._save_track, track)
+        track.external_id = db_track_id
 
-    def _save_track(self, track: RekordboxTrack) -> DjmdContent:
+    def _save_track(self, track: RekordboxTrack) -> str:
         with self._open_db():
             db_track = self._rekordbox_database.add_content(
                 track.path, Title=track.title
             )
             self._rekordbox_database.commit()
-            return db_track
+            return db_track.ID
 
     async def update_playlist(self, playlist: RekordboxPlaylist) -> None:
         """Update PLAYLIST in rekordbox."""
         logger.debug(f"Updating {playlist}")
         local_song_ids = await playlist.tracks.values_list("external_id", flat=True)
-        local_song_ids = list(local_song_ids)
+        local_song_ids = [int(local_id) for local_id in local_song_ids]
         playlist_tracks = await playlist.tracks.all()
-        await asyncio._to_thread(
+        await asyncio.to_thread(
             self._update_playlist, playlist, local_song_ids, playlist_tracks
         )
 
@@ -147,16 +147,22 @@ class RekordboxClient(Client):
             db_song_ids = [int(s.Content.ID) for s in db_songs]
 
             if db_song_ids != local_song_ids:
+                logger.debug(f"Removing existing playlist tracks for {playlist}")
                 for song in db_playlist.Songs:
                     self._rekordbox_database.remove_from_playlist(db_playlist, song)
 
+                logger.debug(f"Adding new playlist tracks for {playlist}")
                 for track in playlist_tracks:
                     db_track = self._rekordbox_database.get_content(
                         ID=track.external_id
                     )
-                    self._rekordbox_database.add_to_playlist(db_playlist, db_track)
+                    if db_track:
+                        self._rekordbox_database.add_to_playlist(db_playlist, db_track)
 
+                logger.debug(f"Committing {playlist} changes to rekordbox")
                 self._rekordbox_database.commit()
+            else:
+                logger.debug(f"{playlist} is already up to date")
 
     async def get_non_playlist_tracks(self) -> AsyncGenerator[RekordboxTrack, None]:
         non_playlist_tracks = await asyncio.to_thread(self._get_non_playlist_tracks)
