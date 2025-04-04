@@ -1,7 +1,7 @@
 import asyncio
 import shutil
 from pathlib import Path
-from typing import List, AsyncGenerator
+from typing import AsyncGenerator, List
 
 from pyrekordbox import Rekordbox6Database
 from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist, PlaylistType
