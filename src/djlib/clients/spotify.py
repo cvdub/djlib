@@ -32,7 +32,7 @@ from .abstract import Client, TrackExportError
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 1
-CONCURRENT_DOWNLOADS = 6
+CONCURRENT_DOWNLOADS = 2
 DOWNLOAD_RETRIES = 10
 TRACK_STREAM_LOCK_DURATION = 10  # seconds
 
