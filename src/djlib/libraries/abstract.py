@@ -170,7 +170,7 @@ class Library(ABC):
                 if track := tracks_by_isrc.get(isrc):
                     tracks.append(track)
                 else:
-                    logger.warning(f"Missing track for {playlist} with ISRC: {isrc}")
+                    logger.debug(f"Missing track for {playlist} with ISRC: {isrc}")
 
             await playlist.add_tracks(*tracks, delete_existing=True)
             await self._client.update_playlist(playlist)

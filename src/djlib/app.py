@@ -78,12 +78,14 @@ class App:
                 for task in asyncio.as_completed(export_track_tasks):
                     result = await task
                     if isinstance(result, TrackExportError):
-                        logger.warning(f"{result}")
+                        logger.debug(f"{result}")
                     else:
                         num_exported += 1
                         tg.create_task(target.import_track(result))
 
-        logger.info(f"Imported {num_exported:,} tracks to {target}")
+        logger.info(
+            f"Imported {num_exported:,}/{len(missing_tracks):,} tracks to {target}"
+        )
 
         source_playlists = await source.playlists.filter(status=PlaylistStatus.SYNCED)
         async with asyncio.TaskGroup() as tg:

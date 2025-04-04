@@ -33,10 +33,10 @@ from .abstract import Client, TrackExportError
 
 SPOTIFY_API_URL = "https://api.spotify.com/v1/"
 CONCURRENT_API_CALLS = 1
-CONCURRENT_DOWNLOADS = 2
+CONCURRENT_DOWNLOADS = 1
 DOWNLOAD_RETRIES = 10
 DOWNLOAD_RETRY_BASE_WAIT_TIME = 1  # seconds
-TRACK_STREAM_LOCK_DURATION = 10  # seconds
+TRACK_STREAM_LOCK_DURATION = 1  # seconds
 
 CHUNK_SIZE = 65_536
 
@@ -288,7 +288,7 @@ class SpotifyClient(Client):
                     wait_time = DOWNLOAD_RETRY_BASE_WAIT_TIME * (
                         2 ** (retry_attempt - 1)
                     ) + random.uniform(0, 1)
-                    logger.warning(
+                    logger.debug(
                         f"[{retry_attempt}/{DOWNLOAD_RETRIES}] {e}. Waiting {wait_time:.1f}s before retry."
                     )
                     await asyncio.sleep(wait_time)

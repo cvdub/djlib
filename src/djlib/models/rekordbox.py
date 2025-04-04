@@ -33,7 +33,7 @@ class RekordboxTrack(Track):
             track_number = 1
 
         if track_number < 1:
-            logger.warning(
+            logger.debug(
                 f"Invalid track number: {track_number} on "
                 f"RekordboxTrack {db_track.FolderPath}"
             )
@@ -64,7 +64,7 @@ class RekordboxTrack(Track):
         try:
             audio = ID3(track_path)
         except MutagenError:
-            logger.warning(f"Failed to read ISRC tag from {track_path}")
+            logger.debug(f"Failed to read ISRC tag from {track_path}")
             return None
 
         isrc = str(audio.get("TSRC", "")) or None
