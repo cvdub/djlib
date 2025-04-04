@@ -26,7 +26,8 @@ class RekordboxClient(Client):
 
     async def close(self) -> None:
         logger.debug(f"Closing {self}")
-        await asyncio.to_thread(self._rekordbox_database.close)
+        async with self._rekordbox_database_semaphore:
+            await asyncio.to_thread(self._rekordbox_database.close)
 
     async def get_playlists(self) -> AsyncGenerator[RekordboxPlaylist, None]:
         db_playlists = await asyncio.to_thread(
