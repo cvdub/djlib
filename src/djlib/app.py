@@ -44,15 +44,17 @@ class App:
             await library.connect()
 
     async def close(self) -> None:
+        async with asyncio.TaskGroup() as tg:
+            for library in self._libraries.values():
+                tg.create_task(library.close())
+
         await self._database.close()
-        for library in self._libraries.values():
-            await library.close()
 
     async def refresh(self) -> None:
         """Refresh all libraries."""
-        await asyncio.gather(
-            *(library.refresh() for library in self._libraries.values())
-        )
+        async with asyncio.TaskGroup() as tg:
+            for library in self._libraries.values():
+                tg.create_task(library.refresh())
 
     async def update(self, source: type[Library], target: type[Library]) -> None:
         """Update tracks and playlists TARGET to match SOURCE."""
